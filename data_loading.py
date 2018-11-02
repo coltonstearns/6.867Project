@@ -1,5 +1,6 @@
 from torchvision import transforms
 import torch.utils.data as data
+import torch
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -9,6 +10,11 @@ import os
 import os.path
 import sys
 
+IMG_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.ppm', '.bmp', '.pgm', '.tif']
+
+# ======================================================================================#
+# =================== Obtain paths to all data images and targets ======================#
+# ======================================================================================#
 
 def has_file_allowed_extension(filename, extensions):
     """Checks if a file is an allowed extension.
@@ -66,54 +72,109 @@ def make_dataset(image_dir, semantic_image_labels_dir):
 
     return images_and_lables
 
+# ======================================================================================#
+# ======================================================================================#
 
-class DatasetFolder(data.Dataset):
-    """
+
+# =====================================================================================#
+# =========================== Loaders used to load images =============================#
+# =====================================================================================#
+def pil_loader(path):
+    # open path as file to avoid ResourceWarning (https://github.com/python-pillow/Pillow/issues/835)
+    with open(path, 'rb') as f:
+        img = Image.open(f)
+        return img.convert('RGB')
+
+
+def pil_black_and_white_loader(path):
+    with open(path, 'rb') as f:
+        img = Image.open(f)
+        x = img.crop((0, 0, 1, 1))
+        #x.show()
+        return img
+
+
+def accimage_loader(path):
+    import accimage
+    try:
+        return accimage.Image(path)
+    except IOError:
+        # Potentially a decoding problem, fall back to PIL.Image
+        return pil_loader(path)
+
+
+def default_loader(path):
+    from torchvision import get_image_backend
+    if get_image_backend() == 'accimage':
+        return accimage_loader(path)
+    else:
+        return pil_loader(path)
+
+# ======================================================================================#
+# ======================================================================================#
+
+
+# =====================================================================================#
+# =============================== Create Dataset Class ================================#
+# =====================================================================================#
+class DeepDriveDataset(data.Dataset):
+    # loaders for Deep Drive Images and Drivable Maps Labels
+    IMAGE_LOADER = default_loader
+    TARGET_LOADER = pil_black_and_white_loader
+
+    # extensions for viable images
+    EXTENSIONS = IMG_EXTENSIONS
+
+    """A loader for the deep drive dataset for semantic segmentation of images. Loads bdd100k images as well as bdd100k
+    drivable maps as labels.
+
     Args:
         image_dir (string): Root directory path of images.
         semantic_image_labels_dir (string): Root directory path of image-labels
-        loader (callable): A function to load a sample given its path.
-        extensions (list[string]): A list of allowed extensions.
-        transform (callable, optional): A function/transform that takes in
-            a sample and returns a transformed version.
-            E.g, ``transforms.RandomCrop`` for images.
+        transform (callable, optional): A function/transform that  takes in an PIL image
+            and returns a transformed version. E.g, ``transforms.RandomCrop``
 
      Attributes:
-        samples (list): List of (sample path, label path) tuples
-        root (string): The path of the folder containing the images
+        samples (list): List of (image path, class_index) tuples
     """
-
-    def __init__(self, image_dir, semantic_image_labels_dir, loader, extensions, transform=None, target_transform=None):
+    def __init__(self, image_dir, semantic_image_labels_dir, transform = None):
         # get all of our data
         samples = make_dataset(image_dir, semantic_image_labels_dir)
         if len(samples) == 0:
             raise(RuntimeError("Found 0 files in folder of: " + image_dir + "\n"
-                               "Supported extensions are: " + ",".join(extensions)))
+                               "Supported extensions are: " + ",".join(self.EXTENSIONS)))
 
-        # pytorch attributes
         self.root = image_dir
-        self.loader = loader
-        self.extensions = extensions
-
-        # attributes of our dataset
         self.samples = samples
         self.transform = transform
-        self.target_transform = None  # target transform is not applicable to our uses
+        self.target_transform = None
 
-    def __getitem__(self, index):  # this is what I'll actually change!!
+    def __getitem__(self, index):
         """
         Args:
             index (int): Index
         Returns:
-            tuple: (sample, target) where target is the path of the target segmented-image.
+            tuple: (sample, target) Sample is the sample image, transformed by the transform 
+            specification of the Dataset. Target is a (m x n x 3) one-hot encoded torch.tensor containing
+            each pixel labeled as 0 or 1 for the 3 classes: not drivable area, drivable other lanes, and drivable
+            current lane.
         """
-        sample_path, target_path = self.samples[index]
-        sample = self.loader(sample_path)
-        target = self.loader(target_path)
+        # load images
+        sample_path, target_path = self.samples[i]
+        sample = DeepDriveDataset.IMAGE_LOADER(sample_path)
+        target = DeepDriveDataset.TARGET_LOADER(target_path)
 
+        # perform equivalent transform on BOTH image and target 
         if self.transform is not None:
-            sample = self.transform(sample)
-            target = self.transform(target)
+            sample, target = self.transform(sample, target)
+
+       # process target image to be one-hot encoded pytorch tensor
+        target_pixels = np.array(target)
+        non_drivable_area = np.where(target_pixels == 0, 1, 0)
+        drivable_adjacent_lane = np.where(target_pixels == 1, 1, 0)
+        drivable_current_lane = np.where(target_pixels == 2, 1, 0)
+        one_hot_target = np.dstack((non_drivable_area, drivable_adjacent_lane, drivable_current_lane))
+        target = torch.tensor(one_hot_target, dtype = torch.double)
 
         return sample, target
 
@@ -134,57 +195,34 @@ class DatasetFolder(data.Dataset):
         fmt_str += '{0}{1}\n'.format(tmp, self.transform.__repr__().replace('\n', '\n' + ' ' * len(tmp)))
         return fmt_str
 
-
-IMG_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.ppm', '.bmp', '.pgm', '.tif']
-
-
-def pil_loader(path):
-    # open path as file to avoid ResourceWarning (https://github.com/python-pillow/Pillow/issues/835)
-    with open(path, 'rb') as f:
-        img = Image.open(f)
-        return img.convert('RGB')
+# ======================================================================================#
+# ======================================================================================#
 
 
-def accimage_loader(path):
-    import accimage
-    try:
-        return accimage.Image(path)
-    except IOError:
-        # Potentially a decoding problem, fall back to PIL.Image
-        return pil_loader(path)
+# ======================================================================================#
+# ==================== Create the Dataset with desired Transforms ======================#
+# ======================================================================================#
+
+'''
+Takes in the width and height of all images, as well as the width and height for each
+image to be cropped to. Returns a function that, given a tuple of images, returns a tuple
+of each image cropped to the same random section. The random section has (crop_width by crop_height).
+'''
+def random_crop_images(width, height, crop_width, crop_height):
+    if crop_width > width or crop_height > height:
+        raise ValueError("The crop size must be smaller than the image size.")
+
+    i = np.random.randint(0, width - crop_width) if width != crop_width else 0
+    j = np.random.randint(0, height - crop_height) if height != crop_height else 0
+
+    def crop_images(image, target):
+        cropped_image = transforms.functional.crop(image, i, j, crop_height, crop_width)
+        cropped_target = target.crop((i, j, i + crop_height, j + crop_width))
+        return (cropped_image, cropped_target)
+
+    return crop_images
 
 
-def default_loader(path):
-    from torchvision import get_image_backend
-    if get_image_backend() == 'accimage':
-        return accimage_loader(path)
-    else:
-        return pil_loader(path)
-
-
-class DeepDriveDataset(DatasetFolder):
-    """A loader for the deep drive dataset for semantic segmentation of images. Loads bdd100k images as well as bdd100k
-    drivable maps as labels.
-    Args:
-        image_dir (string): Root directory path of images.
-        semantic_image_labels_dir (string): Root directory path of image-labels
-        transform (callable, optional): A function/transform that  takes in an PIL image
-            and returns a transformed version. E.g, ``transforms.RandomCrop``
-        loader (callable, optional): A function to load an image given its path.
-     Attributes:
-        classes (list): List of the class names.
-        class_to_idx (dict): Dict with items (class_name, class_index).
-        imgs (list): List of (image path, class_index) tuples
-    """
-    def __init__(self, image_dir, semantic_image_labels_dir, transform=None, loader=default_loader):
-        super(DeepDriveDataset, self).__init__(image_dir, semantic_image_labels_dir, loader = loader,
-                                         extensions = IMG_EXTENSIONS, transform=transform)
-        self.imgs = self.samples
-
-        
-# ===================================================================================================
-# ================================ Call the Loader on this Device ===================================
-# ===================================================================================================
 
 def load_datasets(image_dir = "C:/Users/cstea/Documents/6.867 Final Project/bdd100k_images/bdd100k/images/100k",
                  label_dir = "C:/Users/cstea/Documents/6.867 Final Project/bdd100k_drivable_maps/bdd100k/drivable_maps/labels"):
@@ -199,7 +237,32 @@ def load_datasets(image_dir = "C:/Users/cstea/Documents/6.867 Final Project/bdd1
     '''
 
     # load train and test datasets given my PC's folder paths
-    train_dataset = DeepDriveDataset(image_dir + "/train", label_dir + "/train", transform = transforms.CenterCrop(720))
-    test_dataset = DeepDriveDataset(image_dir + "/test", label_dir + "/test", transform = transforms.CenterCrop(720))
+
+    train_dataset = DeepDriveDataset(image_dir + "/train", label_dir + "/train", transform = random_crop_images(1280, 720, 720, 720))
+    test_dataset = DeepDriveDataset(image_dir + "/test", label_dir + "/test", transform = random_crop_images(1280, 720, 720, 720))
 
     return train_dataset, test_dataset
+
+
+# Main method goes through and tests loaded database pictures and tensor labels
+if __name__ == "__main__":
+    train, test = load_datasets()
+    for i in range(10):
+        image, target = train.__getitem__(i)
+
+        # show image
+        print("Showing image:")
+        image.show()
+
+        # show image segmentation 
+        target_image = target.numpy()
+        print(target_image.shape)
+        print("Showing nondrivable area")
+        img = Image.fromarray(target_image[:,:,0] * 255)
+        img.show()
+        print("Showing not current lane drivable area")
+        img = Image.fromarray(target_image[:,:,1] * 255)
+        img.show()
+        print("Showing current lane drivable area")
+        img = Image.fromarray(target_image[:,:,2] * 255)
+        img.show()
