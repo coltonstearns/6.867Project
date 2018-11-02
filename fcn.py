@@ -41,7 +41,16 @@ class FCN(nn.Module):  # inherit from base class torch.nn.Module
         x = F.relu(self.upsample1(x))  # NOT SURE IF WE SHOULD USE RELU HERE!
         x = self.classify_layer(x)  # finish with 2d classification
 
-        return nn.Sigmoid(x)  # return sigmoid for probability of 2d tensor
+        return nn.LogSoftmax()(x)  # return softmax for probability of 2d tensor
+
+    """
+    Saves the model to the given path
+    """
+    def save(self, path = "./model.bak"):
+        torch.save(self.state_dict(), path)
+    
+
+        
 
 
 # TODO: Have not modified the train function yet; this will not work!
@@ -57,39 +66,50 @@ def train(model, device, train_loader, optimizer, epoch):
     sum_num_correct = 0
     sum_loss = 0
     num_batches_since_log = 0
+    loss_func = nn.CrossEntropyLoss()
     # train_loader is torch.utils.data.DataLoader
     for batch_idx, (data, target) in enumerate(train_loader):  # runs through trainer
         data, target = data.to(device), target.to(device)
         optimizer.zero_grad()
         output = model(data)
-        loss = F.nll_loss(output, target)
-        pred = output.max(1, keepdim=True)[1] # get the index of the max log-probability
-        correct = pred.eq(target.view_as(pred)).sum().item()
-        sum_num_correct += correct
+        loss = loss_func(output, target)
+
+        #convert into 1 channel image with values 
+        pred = output.max(1, keepdim=True, axis = 2)
+        assert(pred.shape() == (720, 720))
+
+
+        correct_pixels = pred.eq(target.view_as(pred)).sum().item()
+        sum_num_correct += correct_pixels
+
         sum_loss += loss.item()
         num_batches_since_log += 1
         loss.backward()
         optimizer.step()
+
         if batch_idx % 100 == 0:
             print('Train Epoch: {} [{:05d}/{} ({:02.0f}%)]\tLoss: {:.6f}\tAccuracy: {:02.0f}%'.format(
                 epoch, batch_idx * len(data), len(train_loader.dataset),
                 100. * batch_idx / len(train_loader), sum_loss / num_batches_since_log,
-                100. * sum_num_correct / (num_batches_since_log * train_loader.batch_size))
+                100. * sum_num_correct / (num_batches_since_log * train_loader.batch_size * 720 * 720))
             )
             sum_num_correct = 0
             sum_loss = 0
             num_batches_since_log = 0
 
+
 def test(model, device, test_loader, dataset_name="Test set"):
     model.eval()
     test_loss = 0
     correct = 0
+    loss_func = nn.CrossEntropyLoss()
     with torch.no_grad():
         for data, target in test_loader:
             data, target = data.to(device), target.to(device)
             output = model(data)
-            test_loss += F.nll_loss(output, target, reduction='sum').item() # sum up batch loss
-            pred = output.max(1, keepdim=True)[1] # get the index of the max log-probability
+            test_loss += loss_func(output, target).item() # sum up batch loss
+            pred = output.max(1, keepdim=True, axis = 2) # get the index of the max log-probability
+            assert(pred.shape() == (720, 720))
             correct += pred.eq(target.view_as(pred)).sum().item()
 
     test_loss /= len(test_loader.dataset)
