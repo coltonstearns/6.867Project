@@ -26,7 +26,7 @@ if __name__ == '__main__':
 
     print("Initializing Dataset ... ")
     #load datasets
-    train_loader, test_loader = load_datasets(img_path, test_path)
+    train_loader, test_loader = load_datasets(img_path, test_path, 5)
 
     print("Initializing FCN for Segmentation...")
     #intialize model

@@ -55,7 +55,7 @@ class FCN(nn.Module):  # inherit from base class torch.nn.Module
 
 
 # TODO: Have not modified the train function yet; this will not work!
-def train(model, device, train_loader, optimizer, epoch):
+def train(model, device, train_loader, optimizer, epoch, log_spacing = 10):
     """
     Args:
         model (nn.Module): our neural network
@@ -79,7 +79,7 @@ def train(model, device, train_loader, optimizer, epoch):
 
         ##convert into 1 channel image with values 
         pred = torch.argmax(output, dim = 1, keepdim=False)
-        assert(pred.shape == (1, 720, 720))
+        assert(pred.shape == (5, 720, 720))
 
         correct_pixels = pred.eq(target.view_as(pred)).sum().item()
         sum_num_correct += correct_pixels
@@ -89,11 +89,11 @@ def train(model, device, train_loader, optimizer, epoch):
         loss.backward()
         optimizer.step()
 
-        if batch_idx % 20 == 0:
+        if batch_idx % log_spacing == 0:
             print('Train Epoch: {} [{:05d}/{} ({:02.0f}%)]\tLoss: {:.6f}\tPixel Accuracy: {:02.0f}%'.format(
                 epoch, batch_idx * len(data), len(train_loader),
                 100. * batch_idx / len(train_loader), sum_loss / num_batches_since_log,
-                100. * sum_num_correct / (num_batches_since_log * 720 * 720))
+                100. * sum_num_correct / (num_batches_since_log * train_loader.batch_size * 720 * 720))
             )
             sum_num_correct = 0
             sum_loss = 0

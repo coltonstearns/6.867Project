@@ -139,7 +139,7 @@ class DeepDriveDataset(data.Dataset):
      Attributes:
         samples (list): List of (image path, class_index) tuples
     """
-    def __init__(self, image_dir, semantic_image_labels_dir, transform = None):
+    def __init__(self, image_dir, semantic_image_labels_dir, batch_size = 100, transform = None):
         # get all of our data
         samples = make_dataset(image_dir, semantic_image_labels_dir)
         if len(samples) == 0:
@@ -150,6 +150,7 @@ class DeepDriveDataset(data.Dataset):
         self.samples = samples
         self.transform = transform
         self.target_transform = None
+        self.batch_size = batch_size
 
     def __getitem__(self, index):
         """
@@ -161,30 +162,26 @@ class DeepDriveDataset(data.Dataset):
             each pixel labeled as 0 or 1 for the 3 classes: not drivable area, drivable other lanes, and drivable
             current lane.
         """
-        #TODO add in batch size 
         # load images
-        sample_path, target_path = self.samples[index]
-        sample = default_loader(sample_path)
-        target = pil_black_and_white_loader(target_path)
+        samples = []
+        targets = []
+        for i in range(self.batch_size):
+            sample_path, target_path = self.samples[index*self.batch_size + i]
+            sample = default_loader(sample_path)
+            target = pil_black_and_white_loader(target_path)
 
-        # perform equivalent transform on BOTH image and target 
-        if self.transform is not None:
-            sample, target = self.transform(sample, target)
-
-        sample = np.array([np.array(sample).T])
-       # process target image to be one-hot encoded pytorch tensor
-        target_pixels = np.array(target)
-
-        #non_drivable_area = np.where(target_pixels == 0, 1, 0)
-        #drivable_adjacent_lane = np.where(target_pixels == 1, 1, 0)
-        #drivable_current_lane = np.where(target_pixels == 2, 1, 0)
-        #one_hot_target = np.dstack((non_drivable_area, drivable_adjacent_lane, drivable_current_lane))
+            # perform equivalent transform on BOTH image and target 
+            if self.transform is not None:
+                sample, target = self.transform(sample, target)
+            samples.append(np.array(sample).T)
+            # process target image to be one-hot encoded pytorch tensor
+            targets.append(np.array(target).T)
 
         #one_hot_target = np.array([one_hot_target.T])
-        target = torch.LongTensor([target_pixels.T]) # dtype = torch.float64)
-        sample = torch.FloatTensor(sample)# dtype = torch.float64)
+        targets = torch.LongTensor(targets) # dtype = torch.float64)
+        samples = torch.FloatTensor(samples)# dtype = torch.float64)
 
-        return sample, target
+        return samples, targets
 
     '''
     Overrides object definition of length to be the number of samples in the dataset.
@@ -233,7 +230,8 @@ def random_crop_images(width, height, crop_width, crop_height):
 
 
 def load_datasets(image_dir = "C:/Users/cstea/Documents/6.867 Final Project/bdd100k_images/bdd100k/images/100k",
-                 label_dir = "C:/Users/cstea/Documents/6.867 Final Project/bdd100k_drivable_maps/bdd100k/drivable_maps/labels"):
+                 label_dir = "C:/Users/cstea/Documents/6.867 Final Project/bdd100k_drivable_maps/bdd100k/drivable_maps/labels", 
+                 batch_size = 100):
     '''
     Loads the Berkeley Deep Drive Datasets into a pytorch data.Dataset class. Currently has structure of Berkeley Data Folders
     hard coded into loading scheme, and therefore, this function will fail if one modifies the folder structure of the data.
@@ -246,8 +244,10 @@ def load_datasets(image_dir = "C:/Users/cstea/Documents/6.867 Final Project/bdd1
 
     # load train and test datasets given my PC's folder paths
 
-    train_dataset = DeepDriveDataset(image_dir + "/train", label_dir + "/train", transform = random_crop_images(1280, 720, 720, 720))
-    test_dataset = DeepDriveDataset(image_dir + "/test", label_dir + "/test", transform = random_crop_images(1280, 720, 720, 720))
+    train_dataset = DeepDriveDataset(image_dir + "/train", label_dir + "/train", batch_size = batch_size, 
+                                        transform = random_crop_images(1280, 720, 720, 720))
+    test_dataset = DeepDriveDataset(image_dir + "/test", label_dir + "/test", batch_size = batch_size,
+                                         transform = random_crop_images(1280, 720, 720, 720))
 
     return train_dataset, test_dataset
 
