@@ -21,8 +21,11 @@ if __name__ == '__main__':
     DEFAULT_EPOCHS = 1000
     epochs = DEFAULT_EPOCHS
 
-    img_path = "/home/arjun/MIT/6.867/project/bdd100k_images/bdd100k/images/100k"
-    test_path = "/home/arjun/MIT/6.867/project/bdd100k_drivable_maps/bdd100k/drivable_maps/labels"
+    #img_path = "/home/arjun/MIT/6.867/project/bdd100k_images/bdd100k/images/100k"
+    #test_path = "/home/arjun/MIT/6.867/project/bdd100k_drivable_maps/bdd100k/drivable_maps/labels"
+
+    img_path = "C:/Users/cstea/Documents/6.867 Final Project/bdd100k_images/bdd100k/images/100k"
+    test_path = "C:/Users/cstea/Documents/6.867 Final Project/bdd100k_drivable_maps/bdd100k/drivable_maps/labels"
 
     print("Initializing Dataset ... ")
     #load datasets
@@ -37,8 +40,11 @@ if __name__ == '__main__':
     optimizer = optim.Adam(segmentation_model.parameters(), lr = .001)
     print("Successful initialization!")
 
+    # push model to either cpu or gpu
+    segmentation_model.to(torch.device("cuda"))
+
     #train the model for a set number of epochs
     for epoch in tqdm(range(epochs)):
-        train(segmentation_model, torch.device("cpu"), train_loader, optimizer, epoch)
+        train(segmentation_model, torch.device("cuda"), train_loader, optimizer, epoch)
         segmentation_model.save()
-        test(segmentation_model, torch.device("cpu"), test_loader)
+        test(segmentation_model, torch.device("cuda"), test_loader)
