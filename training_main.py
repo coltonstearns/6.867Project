@@ -20,6 +20,7 @@ if __name__ == '__main__':
     # #TODO parse command line arguments
     DEFAULT_EPOCHS = 1000
     epochs = DEFAULT_EPOCHS
+    DEFAULT_DEVICE = "cpu"
 
     img_path = "/home/arjun/MIT/6.867/project/bdd100k_images/bdd100k/images/100k"
     test_path = "/home/arjun/MIT/6.867/project/bdd100k_drivable_maps/bdd100k/drivable_maps/labels"
@@ -38,7 +39,7 @@ if __name__ == '__main__':
     print("Successful initialization!")
 
     #train the model for a set number of epochs
-    for epoch in tqdm(range(epochs)):
-        train(segmentation_model, torch.device("cpu"), train_loader, optimizer, epoch)
+    for epoch in range(epochs):
+        train(segmentation_model, torch.device(DEFAULT_DEVICE), train_loader, optimizer, epoch)
         segmentation_model.save()
-        test(segmentation_model, torch.device("cpu"), test_loader)
+        test(segmentation_model, torch.device(DEFAULT_DEVICE), test_loader)

@@ -26,9 +26,6 @@ class FCN(nn.Module):  # inherit from base class torch.nn.Module
         # goes from (353 x 353 x 90) to (72 x 72 x 90)
         self.conv3 = nn.Conv2d(90, 90, kernel_size=4, stride = 5, padding = 3, dilation = 1)
 
-        # up sample to (720 x 720 x 90)
-        self.upsample1 = nn.Upsample(scale_factor = 20, mode = 'bilinear')
-
         # reduce tensor to simple 3D value; this will be our result
         self.classify_layer = nn.Conv2d(90, 3, kernel_size = 1, stride = 1, padding = 0)
 
@@ -39,7 +36,7 @@ class FCN(nn.Module):  # inherit from base class torch.nn.Module
         x = F.relu(self.conv1(x))
         x = F.relu(self.conv2(x))
         x = F.relu(self.conv3(x))
-        x = F.relu(self.upsample1(x))  # NOT SURE IF WE SHOULD USE RELU HERE!
+        x = F.relu(nn.functional.interpolate(x, scale_factor = 20, mode = 'bilinear', align_corners=True))  # NOT SURE IF WE SHOULD USE RELU HERE!
         x = self.classify_layer(x)  # finish with 2d classification
 
         return nn.LogSoftmax(dim = 1)(x)  # return softmax for probability of 2d tensor
@@ -55,7 +52,7 @@ class FCN(nn.Module):  # inherit from base class torch.nn.Module
 
 
 # TODO: Have not modified the train function yet; this will not work!
-def train(model, device, train_loader, optimizer, epoch, log_spacing = 10):
+def train(model, device, train_loader, optimizer, epoch, log_spacing = 10, save_spacing = 100):
     """
     Args:
         model (nn.Module): our neural network
@@ -79,7 +76,7 @@ def train(model, device, train_loader, optimizer, epoch, log_spacing = 10):
 
         ##convert into 1 channel image with values 
         pred = torch.argmax(output, dim = 1, keepdim=False)
-        assert(pred.shape == (5, 720, 720))
+        assert(pred.shape == (train_loader.batch_size, 720, 720))
 
         correct_pixels = pred.eq(target.view_as(pred)).sum().item()
         sum_num_correct += correct_pixels
@@ -98,6 +95,10 @@ def train(model, device, train_loader, optimizer, epoch, log_spacing = 10):
             sum_num_correct = 0
             sum_loss = 0
             num_batches_since_log = 0
+
+        if batch_idx % save_spacing == 0:
+            print('Saving Model...')
+            model.save()
 
 
 def test(model, device, test_loader, dataset_name="Test set"):
