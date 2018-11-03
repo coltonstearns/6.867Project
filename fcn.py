@@ -78,21 +78,23 @@ def train(model, device, train_loader, optimizer, epoch):
         loss = loss_func(output, target)
 
         ##convert into 1 channel image with values 
-        #pred = torch.argmax(output, dim = 1, keepdim=False)
-        #assert(pred.shape == (1, 720, 720))
+        pred = torch.argmax(output, dim = 1, keepdim=False)
+        assert(pred.shape == (1, 720, 720))
 
-        #correct_pixels = pred.eq(target.view_as(pred)).sum().item()
-        #sum_num_correct += correct_pixels
+        correct_pixels = pred.eq(target.view_as(pred)).sum().item()
+        sum_num_correct += correct_pixels
 
         sum_loss += loss.item()
         num_batches_since_log += 1
         loss.backward()
         optimizer.step()
 
-        if batch_idx % 10 == 0:
-            print('Train Epoch: {} [{:05d}/{} ({:02.0f}%)]\tLoss: {:.6f}'.format(
+        if batch_idx % 20 == 0:
+            print('Train Epoch: {} [{:05d}/{} ({:02.0f}%)]\tLoss: {:.6f}\tPixel Accuracy: {:02.0f}%'.format(
                 epoch, batch_idx * len(data), len(train_loader),
-                100. * batch_idx / len(train_loader), sum_loss / num_batches_since_log))
+                100. * batch_idx / len(train_loader), sum_loss / num_batches_since_log,
+                100. * sum_num_correct / (num_batches_since_log * 720 * 720))
+            )
             sum_num_correct = 0
             sum_loss = 0
             num_batches_since_log = 0
