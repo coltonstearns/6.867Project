@@ -57,13 +57,15 @@ def make_dataset(image_dir, semantic_image_labels_dir):
         # Faster and available in Python 3.5 and above
         files = [d.name for d in os.scandir(image_dir)]
     else:
-        files = [d for d in os.listdir(image_dir) if os.path.isdir(os.path.join(image_dir, d))]
+        files = [d for d in os.listdir(image_dir)] #if os.path.isdir(os.path.join(image_dir, d))
 
     # go through all image names and create tuple of (image path, label path)
     images_and_lables = []
+    print("files length: " + str(len(files)))
     for file in files:
         # check if file is actually an image
         if not is_image_file(file):
+            print("file: " + str(file) + " is not an image")
             continue
         # otherwise, add this and it's label counterpart to our list
         label_image_name = file[:-4] + "_drivable_id.png"  # get rid of ".jpg" and add "_drivable_id.png"
@@ -159,22 +161,28 @@ class DeepDriveDataset(data.Dataset):
             each pixel labeled as 0 or 1 for the 3 classes: not drivable area, drivable other lanes, and drivable
             current lane.
         """
+        #TODO add in batch size 
         # load images
-        sample_path, target_path = self.samples[i]
-        sample = DeepDriveDataset.IMAGE_LOADER(sample_path)
-        target = DeepDriveDataset.TARGET_LOADER(target_path)
+        sample_path, target_path = self.samples[index]
+        sample = default_loader(sample_path)
+        target = pil_black_and_white_loader(target_path)
 
         # perform equivalent transform on BOTH image and target 
         if self.transform is not None:
             sample, target = self.transform(sample, target)
 
+        sample = np.array([np.array(sample).T])
        # process target image to be one-hot encoded pytorch tensor
         target_pixels = np.array(target)
-        non_drivable_area = np.where(target_pixels == 0, 1, 0)
-        drivable_adjacent_lane = np.where(target_pixels == 1, 1, 0)
-        drivable_current_lane = np.where(target_pixels == 2, 1, 0)
-        one_hot_target = np.dstack((non_drivable_area, drivable_adjacent_lane, drivable_current_lane))
-        target = torch.tensor(one_hot_target, dtype = torch.double)
+
+        #non_drivable_area = np.where(target_pixels == 0, 1, 0)
+        #drivable_adjacent_lane = np.where(target_pixels == 1, 1, 0)
+        #drivable_current_lane = np.where(target_pixels == 2, 1, 0)
+        #one_hot_target = np.dstack((non_drivable_area, drivable_adjacent_lane, drivable_current_lane))
+
+        #one_hot_target = np.array([one_hot_target.T])
+        target = torch.LongTensor([target_pixels.T]) # dtype = torch.float64)
+        sample = torch.FloatTensor(sample)# dtype = torch.float64)
 
         return sample, target
 

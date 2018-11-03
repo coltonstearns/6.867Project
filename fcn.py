@@ -4,6 +4,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 import matplotlib.pyplot as plt
 import numpy as np
+from tqdm import tqdm
 
 # import our pytorch formatted datasets from data_loading.py script
 from data_loading import load_datasets
@@ -15,7 +16,7 @@ Every image is 1280 x 720 pixels, but we will input training chunks of 720 x 720
 class FCN(nn.Module):  # inherit from base class torch.nn.Module
     def __init__(self):
         super(FCN, self).__init__()  # initialize Module characteristics
-
+        
         # goes from (720 x 720 x 3) to (353 x 353 x 30)
         self.conv1 = nn.Conv2d(3, 30, kernel_size=6, stride = 2, padding = 0, dilation = 3)
 
@@ -26,10 +27,10 @@ class FCN(nn.Module):  # inherit from base class torch.nn.Module
         self.conv3 = nn.Conv2d(90, 90, kernel_size=4, stride = 5, padding = 3, dilation = 1)
 
         # up sample to (720 x 720 x 90)
-        self.upsample1 = nn.Upsample(scale_factor = 10, mode = 'bilinear')
+        self.upsample1 = nn.Upsample(scale_factor = 20, mode = 'bilinear')
 
         # reduce tensor to simple 3D value; this will be our result
-        self.classify_layer = nn.Conv3d(90, 2, kernel_size = (90, 1, 1), stride = 1, padding = 0, dilation = 0)
+        self.classify_layer = nn.Conv2d(90, 3, kernel_size = 1, stride = 1, padding = 0)
 
     """
     Defines how we perform a forward pass.
@@ -41,7 +42,7 @@ class FCN(nn.Module):  # inherit from base class torch.nn.Module
         x = F.relu(self.upsample1(x))  # NOT SURE IF WE SHOULD USE RELU HERE!
         x = self.classify_layer(x)  # finish with 2d classification
 
-        return nn.LogSoftmax()(x)  # return softmax for probability of 2d tensor
+        return nn.LogSoftmax(dim = 1)(x)  # return softmax for probability of 2d tensor
 
     """
     Saves the model to the given path
@@ -68,31 +69,30 @@ def train(model, device, train_loader, optimizer, epoch):
     num_batches_since_log = 0
     loss_func = nn.CrossEntropyLoss()
     # train_loader is torch.utils.data.DataLoader
-    for batch_idx, (data, target) in enumerate(train_loader):  # runs through trainer
+    for batch_idx, (data, target) in tqdm(enumerate(train_loader)):  # runs through trainer
         data, target = data.to(device), target.to(device)
         optimizer.zero_grad()
         output = model(data)
+        #assert(output.shape == target.shape), "ouput shape is: " + str(output.shape) \
+        #                                    + " ---- target shape is: " + str(target.shape)
         loss = loss_func(output, target)
 
-        #convert into 1 channel image with values 
-        pred = output.max(1, keepdim=True, axis = 2)
-        assert(pred.shape() == (720, 720))
+        ##convert into 1 channel image with values 
+        #pred = torch.argmax(output, dim = 1, keepdim=False)
+        #assert(pred.shape == (1, 720, 720))
 
-
-        correct_pixels = pred.eq(target.view_as(pred)).sum().item()
-        sum_num_correct += correct_pixels
+        #correct_pixels = pred.eq(target.view_as(pred)).sum().item()
+        #sum_num_correct += correct_pixels
 
         sum_loss += loss.item()
         num_batches_since_log += 1
         loss.backward()
         optimizer.step()
 
-        if batch_idx % 100 == 0:
-            print('Train Epoch: {} [{:05d}/{} ({:02.0f}%)]\tLoss: {:.6f}\tAccuracy: {:02.0f}%'.format(
-                epoch, batch_idx * len(data), len(train_loader.dataset),
-                100. * batch_idx / len(train_loader), sum_loss / num_batches_since_log,
-                100. * sum_num_correct / (num_batches_since_log * train_loader.batch_size * 720 * 720))
-            )
+        if batch_idx % 10 == 0:
+            print('Train Epoch: {} [{:05d}/{} ({:02.0f}%)]\tLoss: {:.6f}'.format(
+                epoch, batch_idx * len(data), len(train_loader),
+                100. * batch_idx / len(train_loader), sum_loss / num_batches_since_log))
             sum_num_correct = 0
             sum_loss = 0
             num_batches_since_log = 0
