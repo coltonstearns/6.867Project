@@ -139,7 +139,7 @@ class DeepDriveDataset(data.Dataset):
      Attributes:
         samples (list): List of (image path, class_index) tuples
     """
-    def __init__(self, image_dir, semantic_image_labels_dir, batch_size = 100, transform = None):
+    def __init__(self, image_dir, semantic_image_labels_dir, transform = None):
         # get all of our data
         samples = make_dataset(image_dir, semantic_image_labels_dir)
         if len(samples) == 0:
@@ -150,7 +150,6 @@ class DeepDriveDataset(data.Dataset):
         self.samples = samples
         self.transform = transform
         self.target_transform = None
-        self.batch_size = batch_size
 
     def __getitem__(self, index):
         """
@@ -163,32 +162,24 @@ class DeepDriveDataset(data.Dataset):
             current lane.
         """
         # load images
-        samples = []
-        targets = []
-        for i in range(self.batch_size):
-            if index*self.batch_size + i < len(self) - 2: 
-                sample_path, target_path = self.samples[index*self.batch_size + i]
-                sample = default_loader(sample_path)
-                target = pil_black_and_white_loader(target_path)
+        sample_path, target_path = self.samples[index]
+        sample = default_loader(sample_path)
+        target = pil_black_and_white_loader(target_path)
 
-                # perform equivalent transform on BOTH image and target 
-                if self.transform is not None:
-                    sample, target = self.transform(sample, target)
-                samples.append(np.array(sample).T)
-                # process target image to be one-hot encoded pytorch tensor
-                targets.append(np.array(target).T)
+        # perform equivalent transform on BOTH image and target 
+        if self.transform is not None:
+            sample, target = self.transform(sample, target)
 
-        #one_hot_target = np.array([one_hot_target.T])
-        targets = torch.LongTensor(targets) # dtype = torch.float64)
-        samples = torch.FloatTensor(samples)# dtype = torch.float64)
+        target = torch.LongTensor(np.array(target).T)
+        sample = torch.FloatTensor(np.array(sample).T)
+        return sample, target
 
-        return samples, targets
 
     '''
     Overrides object definition of length to be the number of samples in the dataset.
     '''
     def __len__(self):
-        return int(len(self.samples)/self.batch_size)
+        return len(self.samples)
 
     '''
     Defines the string representation of our dataset.
@@ -231,8 +222,7 @@ def random_crop_images(width, height, crop_width, crop_height):
 
 
 def load_datasets(image_dir = "C:/Users/cstea/Documents/6.867 Final Project/bdd100k_images/bdd100k/images/100k",
-                 label_dir = "C:/Users/cstea/Documents/6.867 Final Project/bdd100k_drivable_maps/bdd100k/drivable_maps/labels", 
-                 batch_size = 100):
+                 label_dir = "C:/Users/cstea/Documents/6.867 Final Project/bdd100k_drivable_maps/bdd100k/drivable_maps/labels"):
     '''
     Loads the Berkeley Deep Drive Datasets into a pytorch data.Dataset class. Currently has structure of Berkeley Data Folders
     hard coded into loading scheme, and therefore, this function will fail if one modifies the folder structure of the data.
@@ -245,9 +235,9 @@ def load_datasets(image_dir = "C:/Users/cstea/Documents/6.867 Final Project/bdd1
 
     # load train and test datasets given my PC's folder paths
 
-    train_dataset = DeepDriveDataset(image_dir + "/train", label_dir + "/train", batch_size = batch_size) 
+    train_dataset = DeepDriveDataset(image_dir + "/train", label_dir + "/train") 
                                         #transform = random_crop_images(1280, 720, 720, 720))
-    test_dataset = DeepDriveDataset(image_dir + "/test", label_dir + "/test", batch_size = batch_size)
+    test_dataset = DeepDriveDataset(image_dir + "/test", label_dir + "/test")
                                          #$transform = random_crop_images(1280, 720, 720, 720))
 
     return train_dataset, test_dataset
