@@ -166,16 +166,17 @@ class DeepDriveDataset(data.Dataset):
         samples = []
         targets = []
         for i in range(self.batch_size):
-            sample_path, target_path = self.samples[index*self.batch_size + i]
-            sample = default_loader(sample_path)
-            target = pil_black_and_white_loader(target_path)
+            if index*self.batch_size + i < len(self) - 2: 
+                sample_path, target_path = self.samples[index*self.batch_size + i]
+                sample = default_loader(sample_path)
+                target = pil_black_and_white_loader(target_path)
 
-            # perform equivalent transform on BOTH image and target 
-            if self.transform is not None:
-                sample, target = self.transform(sample, target)
-            samples.append(np.array(sample).T)
-            # process target image to be one-hot encoded pytorch tensor
-            targets.append(np.array(target).T)
+                # perform equivalent transform on BOTH image and target 
+                if self.transform is not None:
+                    sample, target = self.transform(sample, target)
+                samples.append(np.array(sample).T)
+                # process target image to be one-hot encoded pytorch tensor
+                targets.append(np.array(target).T)
 
         #one_hot_target = np.array([one_hot_target.T])
         targets = torch.LongTensor(targets) # dtype = torch.float64)
@@ -187,7 +188,7 @@ class DeepDriveDataset(data.Dataset):
     Overrides object definition of length to be the number of samples in the dataset.
     '''
     def __len__(self):
-        return len(self.samples)
+        return int(len(self.samples)/self.batch_size)
 
     '''
     Defines the string representation of our dataset.
@@ -244,10 +245,10 @@ def load_datasets(image_dir = "C:/Users/cstea/Documents/6.867 Final Project/bdd1
 
     # load train and test datasets given my PC's folder paths
 
-    train_dataset = DeepDriveDataset(image_dir + "/train", label_dir + "/train", batch_size = batch_size, 
-                                        transform = random_crop_images(1280, 720, 720, 720))
-    test_dataset = DeepDriveDataset(image_dir + "/test", label_dir + "/test", batch_size = batch_size,
-                                         transform = random_crop_images(1280, 720, 720, 720))
+    train_dataset = DeepDriveDataset(image_dir + "/train", label_dir + "/train", batch_size = batch_size) 
+                                        #transform = random_crop_images(1280, 720, 720, 720))
+    test_dataset = DeepDriveDataset(image_dir + "/test", label_dir + "/test", batch_size = batch_size)
+                                         #$transform = random_crop_images(1280, 720, 720, 720))
 
     return train_dataset, test_dataset
 
