@@ -41,10 +41,10 @@ if __name__ == '__main__':
     print("Successful initialization!")
 
     # push model to either cpu or gpu
-    segmentation_model.to(torch.device("cuda"))
+    segmentation_model.to(torch.device("cpu"))
 
     #train the model for a set number of epochs
     for epoch in tqdm(range(epochs)):
-        train(segmentation_model, torch.device("cuda"), train_loader, optimizer, epoch)
+        train(segmentation_model, torch.device("cpu"), train_loader, optimizer, epoch)
         segmentation_model.save()
         test(segmentation_model, torch.device("cuda"), test_loader)

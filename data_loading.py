@@ -256,21 +256,4 @@ def load_datasets(image_dir = "C:/Users/cstea/Documents/6.867 Final Project/bdd1
 if __name__ == "__main__":
     train, test = load_datasets()
     for i in range(10):
-        image, target = train.__getitem__(i)
-
-        # show image
-        print("Showing image:")
-        image.show()
-
-        # show image segmentation 
-        target_image = target.numpy()
-        print(target_image.shape)
-        print("Showing nondrivable area")
-        img = Image.fromarray(target_image[:,:,0] * 255)
-        img.show()
-        print("Showing not current lane drivable area")
-        img = Image.fromarray(target_image[:,:,1] * 255)
-        img.show()
-        print("Showing current lane drivable area")
-        img = Image.fromarray(target_image[:,:,2] * 255)
-        img.show()
+        images, targets = train.__getitem__(i)
