@@ -6,6 +6,7 @@ from torch.utils.data import DataLoader
 import matplotlib.pyplot as plt
 import numpy as np
 import sys
+import argparse
 from tqdm import tqdm
 from data_loading import DeepDriveDataset, load_datasets
 from fcn import FCN, train, test
@@ -18,12 +19,24 @@ and train it
 """
 if __name__ == '__main__':
 
+    parser = argparse.ArgumentParser(description='A training module for an FCN for the Berkley Deep Drive Dataset')
+    parser.add_argument('--load', '-l', type=str, nargs=1, help= 'A file location to load the model from',
+                         dest = 'load_dir', default = '')
+    parser.add_argument('--test', '-t', action = "store_true", help = "A flag to say that we are testing the model only")
+    parser.add_argument('--save-to', '-s', type = str, help = "A file location to store the model", dest = "save_dir")
+    parser.add_argument('--log_iters', '-log', type = int, help = "The spacing between log printouts for training and testing", default = 7200)
+    parser.add_argument('-lr', type = float, help = "the learning rate to use", default = .001)
+    parser.add_argument('--cuda', '-c', action = "store_true", help = "Flag to use cuda for training and testing")
+    parser.add_argument('--per_class', action="store_true", help="Flag to output per class data during training")
+
+    args = parser.parse_args()
+
     # #TODO parse command line arguments
     DEFAULT_EPOCHS = 1000
     epochs = DEFAULT_EPOCHS
-    DEFAULT_DEVICE = "cpu"
+    USE_CUDA = args.cuda
+    DEFAULT_DEVICE = "cpu" if args.cuda else "cuda"
     DEFAULT_BATCH = 1
-    USE_CUDA = (DEFAULT_DEVICE == "cuda")
 
     img_path = "/home/arjun/MIT/6.867/project/bdd100k_images/bdd100k/images/100k"
     test_path = "/home/arjun/MIT/6.867/project/bdd100k_drivable_maps/bdd100k/drivable_maps/labels"
@@ -42,21 +55,16 @@ if __name__ == '__main__':
     print("Initializing FCN for Segmentation...")
 
     #intialize model
-    params = sys.argv[1:]
-    if(len(params) >= 1):
-        segmentation_model = FCN(params[0])
-    else:
-        assert(False), "Please specify the save directory"
+    segmentation_model = FCN(args.save_dir)
 
-    if(len(params) >= 3):
-        if(params[1] == "load"):
-            segmentation_model.load_state_dict(torch.load(params[2]))
+    if not args.load_dir == '':
+            segmentation_model.load_state_dict(torch.load(args.load_dir))
     
 
-    if(params[-1] == "train"):
+    if not args.test:
         print("Initializing Optimizer...")
         #intialize optimizer
-        optimizer = optim.Adam(segmentation_model.parameters(), lr = .001)
+        optimizer = optim.Adam(segmentation_model.parameters(), lr = args.lr)
         print("Successful initialization!")
 
         # push model to either cpu or gpu
@@ -64,15 +72,13 @@ if __name__ == '__main__':
 
         #train the model for a set number of epochs
         for epoch in range(epochs):
-            train(segmentation_model, torch.device(DEFAULT_DEVICE), train_loader, optimizer, epoch)
-            segmentation_model.save_state_dict(segmentation_model.save_dir)
-            test(segmentation_model, torch.device(DEFAULT_DEVICE), test_loader)
-
-    elif(params[-1] == "test"):
-        print("Successful initialization!")
-        print("testing...")
-        test(segmentation_model, torch.device(DEFAULT_DEVICE), test_loader, iters_per_log=1)
+            train(segmentation_model, torch.device(DEFAULT_DEVICE), train_loader, optimizer, epoch, per_class=args.per_class)
+            segmentation_model.save()
+            test(segmentation_model, torch.device(DEFAULT_DEVICE), test_loader, iters_per_log = args.log_iters)
 
     else:
-        assert(False), "Final Argument must be either \"test\" or \"train\""
+        print("Successful initialization!")
+        print("testing...")
+        test(segmentation_model, torch.device(DEFAULT_DEVICE), test_loader, iters_per_log=args.log_iters)
+
 

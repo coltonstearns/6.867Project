@@ -42,13 +42,16 @@ class FCN(nn.Module):  # inherit from base class torch.nn.Module
 
         return nn.LogSoftmax(dim = 1)(x)  # return softmax for probability of 2d tensor
 
+    def save(self):
+        torch.save(self.state_dict(), self.save_dir)
+
     
 
         
 
 
 # TODO: Have not modified the train function yet; this will not work!
-def train(model, device, train_loader, optimizer, epoch, log_spacing = 7200, save_spacing = 100):
+def train(model, device, train_loader, optimizer, epoch, log_spacing = 7200, save_spacing = 100, per_class = False):
     """
     Args:
         model (nn.Module): our neural network
@@ -61,6 +64,9 @@ def train(model, device, train_loader, optimizer, epoch, log_spacing = 7200, sav
     sum_loss = 0
     num_batches_since_log = 0
     loss_func = nn.CrossEntropyLoss()
+    acc_dict = [[0.0, 0.0, 0.0],
+                [0.0, 0.0, 0.0],
+                [0.0, 0.0, 0.0]]
     # train_loader is torch.utils.data.DataLoader
     for batch_idx, (data, target) in tqdm(enumerate(train_loader)):  # runs through trainer
         data, target = data.to(device), target.to(device)
@@ -76,23 +82,19 @@ def train(model, device, train_loader, optimizer, epoch, log_spacing = 7200, sav
         sum_num_correct += correct_pixels
 
         sum_loss += loss.item()
-        num_batches_since_log += 1
         loss.backward()
         optimizer.step()
 
+        #update per-class accuracies
+        if(per_class):
+            get_per_class_accuracy(pred, target, acc_dict)
+
         if batch_idx % log_spacing == 0:
-            print('Train Epoch: {} [{:05d}/{} ({:02.0f}%)]\tLoss: {:.6f}\tPixel Accuracy: {:02.0f}%'.format(
-                epoch, batch_idx * len(data), len(train_loader),
-                100. * batch_idx / len(train_loader), sum_loss / num_batches_since_log,
-                100. * sum_num_correct / (num_batches_since_log * train_loader.batch_size * 1280 * 720))
-            )
-            sum_num_correct = 0
-            sum_loss = 0
-            num_batches_since_log = 0
+            print_log(correct_pixels, sum_loss, batch_idx + 1, train_loader.batch_size, "Training Set", per_class, acc_dict)
 
         if batch_idx % save_spacing == 0:
-            print('Saving Model...')
-            model.save_state_dict(model.save_dir)
+            print('Saving Model to: ' + str(model.save_dir))
+            model.save()
 
 def get_per_class_accuracy(pred, target, acc_dict):
     #TODO use numpy
