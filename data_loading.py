@@ -237,7 +237,7 @@ def load_datasets(image_dir = "C:/Users/cstea/Documents/6.867 Final Project/bdd1
 
     train_dataset = DeepDriveDataset(image_dir + "/train", label_dir + "/train") 
                                         #transform = random_crop_images(1280, 720, 720, 720))
-    test_dataset = DeepDriveDataset(image_dir + "/test", label_dir + "/test")
+    test_dataset = DeepDriveDataset(image_dir + "/val", label_dir + "/val")
                                          #$transform = random_crop_images(1280, 720, 720, 720))
 
     return train_dataset, test_dataset

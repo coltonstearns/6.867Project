@@ -14,9 +14,10 @@ from data_loading import load_datasets
 Every image is 1280 x 720 pixels, but we will input training chunks of 720 x 720 pixels.
 '''
 class FCN(nn.Module):  # inherit from base class torch.nn.Module
-    def __init__(self):
+    def __init__(self, save_dir):
         super(FCN, self).__init__()  # initialize Module characteristics
         
+        self.save_dir = save_dir
         # goes from (720 x 720 x 3) to (353 x 353 x 30)
         self.conv1 = nn.Conv2d(3, 30, kernel_size=6, stride = 2, padding = 0, dilation = 3)
 
@@ -41,18 +42,13 @@ class FCN(nn.Module):  # inherit from base class torch.nn.Module
 
         return nn.LogSoftmax(dim = 1)(x)  # return softmax for probability of 2d tensor
 
-    """
-    Saves the model to the given path
-    """
-    def save(self, path = "./model.bak"):
-        torch.save(self.state_dict(), path)
     
 
         
 
 
 # TODO: Have not modified the train function yet; this will not work!
-def train(model, device, train_loader, optimizer, epoch, log_spacing = 10, save_spacing = 100):
+def train(model, device, train_loader, optimizer, epoch, log_spacing = 7200, save_spacing = 100):
     """
     Args:
         model (nn.Module): our neural network
@@ -96,29 +92,79 @@ def train(model, device, train_loader, optimizer, epoch, log_spacing = 10, save_
 
         if batch_idx % save_spacing == 0:
             print('Saving Model...')
-            model.save()
+            model.save_state_dict(model.save_dir)
+
+def get_per_class_accuracy(pred, target, acc_dict):
+    #TODO use numpy
+    #go through all image indices in the image
+    num_correct = 0
+    for image_idx in range(pred.shape[0]):
+        pred_image = pred[image_idx, :, :]
+        target_image = target[image_idx, :, :]
+        for i in range(pred.shape[1]):
+            for j in range(pred.shape[2]):
+                acc_dict[target_image[i, j]][pred_image[i, j]] += 1
+                if(target_image[i, j] == pred_image[i, j]):
+                    num_correct += 1
+    return num_correct
+    
 
 
-def test(model, device, test_loader, dataset_name="Test set"):
+def test(model, device, test_loader, dataset_name="Test set", iters_per_log = 7000):
     model.eval()
     test_loss = 0
     correct = 0
     loss_func = nn.CrossEntropyLoss()
+    batches_done = 0
+    #initialize per class accuracy
+    # Target 1:  
+    # Target 2:
+    # Target 3: 
+    acc_dict = [[0.0, 0.0, 0.0],
+                [0.0, 0.0, 0.0],
+                [0.0, 0.0, 0.0]]
+
     with torch.no_grad():
-        for data, target in test_loader:
+        for batch_idx, (data, target) in tqdm(enumerate(test_loader)):  # runs through trainer
             data, target = data.to(device), target.to(device)
             output = model(data)
-            test_loss += loss_func(output, target).item() # sum up batch loss
-            pred = output.max(1, keepdim=True, axis = 2) # get the index of the max log-probability
-            assert(pred.shape() == (720, 720))
-            correct += pred.eq(target.view_as(pred)).sum().item()
+            test_loss += loss_func(output, target).item()
 
-    test_loss /= len(test_loader.dataset)
+            ##convert into 1 channel image with values 
+            pred = torch.argmax(output, dim = 1, keepdim=False)
+            assert(pred.shape == (test_loader.batch_size, 1280, 720)), "got incorrect shape of: " + str(pred.shape)
+
+            correct_pixels = pred.eq(target.view_as(pred)).sum().item()
+            correct += correct_pixels
+
+            verify_pixels = get_per_class_accuracy(pred, target, acc_dict)
+            assert(verify_pixels == correct_pixels)
+            batches_done += 1
+
+            if(batches_done % iters_per_log == 0):
+                print_log(correct, test_loss, batches_done, test_loader.batch_size, dataset_name, True, acc_dict)
+
+        print_log(correct, test_loss, len(test_loader.dataset), 1, dataset_name, True, acc_dict)       
+
+def print_log(correct_pixels, loss, num_samples, batch_size, name, use_acc_dict = False, acc_dict = None):
+
+    loss = loss/(num_samples*batch_size)
+    total_samples = num_samples*batch_size*1280*720
+    print('\n--------------------------------------------------------------')
     print('\n{}: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(
-        dataset_name,
-        test_loss, correct, len(test_loader.dataset),
-        100. * correct / len(test_loader.dataset)))
+        name, loss, correct_pixels, total_samples,
+        100. * correct_pixels / total_samples))
 
+    if use_acc_dict:
+        print('\n Class |  Samples  | % Class 0 | % Class 1 | %Class 2 |')
+        for class_type in range(len(acc_dict)):
+            total = acc_dict[class_type][0] + acc_dict[class_type][1] + acc_dict[class_type][2]
+            if total == 0: 
+                print(' {}     |     0     |    n/a    |    n/a    |    n/a    |'.format(class_type))
+            else: 
+                print(' {}     | {} |   {}   |   {}   |   {}   |'.format(class_type, total, 100*acc_dict[class_type][0]/total, 
+                    100*acc_dict[class_type][1]/total, 100*acc_dict[class_type][2]/total))
+    print('--------------------------------------------------------------')
 
 def training_procedure(train_dataset, test_dataset, daniels_photos):
     # ------------------ Training Parameters ----------------------#
