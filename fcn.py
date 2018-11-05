@@ -70,13 +70,11 @@ def train(model, device, train_loader, optimizer, epoch, log_spacing = 10, save_
         data, target = data.to(device), target.to(device)
         optimizer.zero_grad()
         output = model(data)
-        #assert(output.shape == target.shape), "ouput shape is: " + str(output.shape) \
-        #                                    + " ---- target shape is: " + str(target.shape)
         loss = loss_func(output, target)
 
         ##convert into 1 channel image with values 
         pred = torch.argmax(output, dim = 1, keepdim=False)
-        assert(pred.shape == (train_loader.batch_size, 720, 720))
+        assert(pred.shape == (train_loader.batch_size, 1280, 720)), "got incorrect shape of: " + str(pred.shape)
 
         correct_pixels = pred.eq(target.view_as(pred)).sum().item()
         sum_num_correct += correct_pixels
@@ -90,7 +88,7 @@ def train(model, device, train_loader, optimizer, epoch, log_spacing = 10, save_
             print('Train Epoch: {} [{:05d}/{} ({:02.0f}%)]\tLoss: {:.6f}\tPixel Accuracy: {:02.0f}%'.format(
                 epoch, batch_idx * len(data), len(train_loader),
                 100. * batch_idx / len(train_loader), sum_loss / num_batches_since_log,
-                100. * sum_num_correct / (num_batches_since_log * train_loader.batch_size * 720 * 720))
+                100. * sum_num_correct / (num_batches_since_log * train_loader.batch_size * 1280 * 720))
             )
             sum_num_correct = 0
             sum_loss = 0

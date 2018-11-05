@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
+from torch.utils.data import DataLoader
 import matplotlib.pyplot as plt
 import numpy as np
 import sys
@@ -20,17 +21,23 @@ if __name__ == '__main__':
     # #TODO parse command line arguments
     DEFAULT_EPOCHS = 1000
     epochs = DEFAULT_EPOCHS
-    DEFAULT_DEVICE = "cpu"
+    DEFAULT_DEVICE = "cuda"
+    DEFAULT_BATCH = 1
+    USE_CUDA = (DEFAULT_DEVICE == "cuda")
 
     #img_path = "/home/arjun/MIT/6.867/project/bdd100k_images/bdd100k/images/100k"
-    #test_path = "/home/arjun/MIT/6.867/project/bdd100k_drivable_maps/bdd100k/drivable_maps/labels"
-
-    img_path = "C:/Users/cstea/Documents/6.867 Final Project/bdd100k_images/bdd100k/images/100k"
-    test_path = "C:/Users/cstea/Documents/6.867 Final Project/bdd100k_drivable_maps/bdd100k/drivable_maps/labels"
+    #test_path = "/home/arjun/MIT/6.867/project/bdd100k_drivable_maps/bdd100k/drivable_maps/lab
+    img_path = "C:/Users/Arjun/6.867Project/images/bdd100k/images/100k"
+    test_path = "C:/Users/Arjun/6.867Project/images/bdd100k/drivable_maps/labels"
 
     print("Initializing Dataset ... ")
     #load datasets
-    train_loader, test_loader = load_datasets(img_path, test_path, 5)
+    train_dataset, test_dataset = load_datasets(img_path, test_path)
+    train_loader = DataLoader(train_dataset, batch_size = DEFAULT_BATCH, shuffle = False,
+                             num_workers = 1 if USE_CUDA else 0, pin_memory = USE_CUDA)
+    test_loader = DataLoader(test_dataset, batch_size = DEFAULT_BATCH, shuffle = False,
+                             num_workers = 1 if USE_CUDA else 0, pin_memory = USE_CUDA)
+    
 
     print("Initializing FCN for Segmentation...")
     #intialize model
