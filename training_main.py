@@ -42,7 +42,7 @@ if __name__ == '__main__':
     print("Successful initialization!")
 
     # push model to either cpu or gpu
-    segmentation_model.to(torch.device("cuda"))
+    segmentation_model.to(torch.device(DEFAULT_DEVICE))
 
     #train the model for a set number of epochs
     for epoch in range(epochs):
