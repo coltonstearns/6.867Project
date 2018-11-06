@@ -63,7 +63,7 @@ def train(model, device, train_loader, optimizer, epoch, log_spacing = 7200, sav
     sum_num_correct = 0
     sum_loss = 0
     num_batches_since_log = 0
-    loss_func = nn.CrossEntropyLoss()
+    loss_func = nn.CrossEntropyLoss(reduction = "elementwise_mean")
     acc_dict = [[0.0, 0.0, 0.0],
                 [0.0, 0.0, 0.0],
                 [0.0, 0.0, 0.0]]
