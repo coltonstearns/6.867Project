@@ -19,16 +19,16 @@ class FCN(nn.Module):  # inherit from base class torch.nn.Module
         
         self.save_dir = save_dir
         # goes from (720 x 720 x 3) to (353 x 353 x 30)
-        self.conv1 = nn.Conv2d(3, 30, kernel_size=6, stride = 2, padding = 0, dilation = 3)
+        self.conv1 = nn.Conv2d(3, 8, kernel_size=6, stride = 2, padding = 0, dilation = 3)
 
         # goes from (353 x 353 x 30) to (175 x 175 x 90)
-        self.conv2 = nn.Conv2d(30, 90, kernel_size=5, stride = 2, padding = 0, dilation = 1)
+        self.conv2 = nn.Conv2d(8, 16, kernel_size=5, stride = 2, padding = 0, dilation = 1)
 
         # goes from (353 x 353 x 90) to (72 x 72 x 90)
-        self.conv3 = nn.Conv2d(90, 90, kernel_size=4, stride = 5, padding = 3, dilation = 1)
+        self.conv3 = nn.Conv2d(16, 8, kernel_size=4, stride = 5, padding = 3, dilation = 1)
 
         # reduce tensor to simple 3D value; this will be our result
-        self.classify_layer = nn.Conv2d(90, 3, kernel_size = 1, stride = 1, padding = 0)
+        self.classify_layer = nn.Conv2d(8, 3, kernel_size = 1, stride = 1, padding = 0)
 
     """
     Defines how we perform a forward pass.
@@ -67,6 +67,7 @@ def train(model, device, train_loader, optimizer, epoch, log_spacing = 7200, sav
     acc_dict = [[0.0, 0.0, 0.0],
                 [0.0, 0.0, 0.0],
                 [0.0, 0.0, 0.0]]
+
     # train_loader is torch.utils.data.DataLoader
     for batch_idx, (data, target) in tqdm(enumerate(train_loader)):  # runs through trainer
         data, target = data.to(device), target.to(device)
@@ -99,6 +100,7 @@ def train(model, device, train_loader, optimizer, epoch, log_spacing = 7200, sav
 def get_per_class_accuracy(pred, target, acc_dict):
     #TODO use numpy
     #go through all image indices in the image
+    print("getting per class accuracy")
     num_correct = 0
     for image_idx in range(pred.shape[0]):
         pred_image = pred[image_idx, :, :]
@@ -108,6 +110,7 @@ def get_per_class_accuracy(pred, target, acc_dict):
                 acc_dict[target_image[i, j]][pred_image[i, j]] += 1
                 if(target_image[i, j] == pred_image[i, j]):
                     num_correct += 1
+    print("done getting per class accuracy")
     return num_correct
     
 
@@ -139,12 +142,12 @@ def test(model, device, test_loader, dataset_name="Test set", iters_per_log = 70
             correct_pixels = pred.eq(target.view_as(pred)).sum().item()
             correct += correct_pixels
 
-            verify_pixels = get_per_class_accuracy(pred, target, acc_dict)
-            assert(verify_pixels == correct_pixels)
+            #verify_pixels = get_per_class_accuracy(pred, target, acc_dict)
+            #assert(verify_pixels == correct_pixels)
             batches_done += 1
 
             if(batches_done % iters_per_log == 0):
-                print_log(correct, test_loss, batches_done, test_loader.batch_size, dataset_name, True, acc_dict)
+                print_log(correct, test_loss, batches_done, test_loader.batch_size, dataset_name, False, acc_dict)
 
         print_log(correct, test_loss, len(test_loader.dataset), 1, dataset_name, True, acc_dict)       
 
