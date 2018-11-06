@@ -36,7 +36,7 @@ if __name__ == '__main__':
     DEFAULT_EPOCHS = 1000
     epochs = DEFAULT_EPOCHS
     USE_CUDA = args.cuda
-    DEFAULT_DEVICE = "cpu" if args.cuda else "cuda"
+    DEFAULT_DEVICE = "cuda" if args.cuda else "cpu"
     DEFAULT_BATCH = args.batch_size
 
     img_path = "/home/arjun/MIT/6.867/project/bdd100k_images/bdd100k/images/100k"
@@ -46,7 +46,7 @@ if __name__ == '__main__':
 
     print("Initializing Dataset ... ")
     #load datasets
-    train_dataset, test_dataset = load_datasets(img_path, test_path)
+    train_dataset, test_dataset = load_datasets()
     train_loader = DataLoader(train_dataset, batch_size = DEFAULT_BATCH, shuffle = False,
                              num_workers = 1 if USE_CUDA else 0, pin_memory = USE_CUDA)
     test_loader = DataLoader(test_dataset, batch_size = DEFAULT_BATCH, shuffle = False,
