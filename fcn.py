@@ -47,17 +47,17 @@ class FCN(nn.Module):  # inherit from base class torch.nn.Module
 
     
 
-        
-
-
-# TODO: Have not modified the train function yet; this will not work!
 def train(model, device, train_loader, optimizer, epoch, log_spacing = 7200, save_spacing = 100, per_class = False):
     """
     Args:
-        model (nn.Module): our neural network
-        device (torch.device("cuda" if use_cuda else "cpu")): represents if we are running this on GPU or CPU
+        model (nn.Module): the FCN pytorch model
+        device (torch.device): represents if we are running this on GPU or CPU
+        optimizer (torch.optim): the optimization object that trains the network. Ex: torch.optim.Adam(modle.parameters())
         train_loader (torch.utils.data.DataLoader): the pytorch object that contains all training data and targets
         epoch (int): the epoch number we are on
+        log_spacing (int): prints training statistics to display every <log_spacing> batches
+        save_spacing (int): saves most recent version of model every <save_spacing> batches
+        per_class (boolean): true if want class-level statistics printed. false otherwise
     """
     model.train()  # puts it in training mode
     sum_num_correct = 0
@@ -68,14 +68,14 @@ def train(model, device, train_loader, optimizer, epoch, log_spacing = 7200, sav
                 [0.0, 0.0, 0.0],
                 [0.0, 0.0, 0.0]]
 
-    # train_loader is torch.utils.data.DataLoader
-    for batch_idx, (data, target) in tqdm(enumerate(train_loader)):  # runs through trainer
+    # run through data in batches, train network on each batch
+    for batch_idx, (data, target) in tqdm(enumerate(train_loader)):
         data, target = data.to(device), target.to(device)
-        optimizer.zero_grad()
-        output = model(data)
-        loss = loss_func(output, target)
+        optimizer.zero_grad()  # reset gradient to 0 (so doesn't accumulate)
+        output = model(data)  # runs batch through the model
+        loss = loss_func(output, target)  # compute loss of output
 
-        ##convert into 1 channel image with values 
+        # convert into 1 channel image with predicted class values 
         pred = torch.argmax(output, dim = 1, keepdim=False)
         assert(pred.shape == (train_loader.batch_size, 1280, 720)), "got incorrect shape of: " + str(pred.shape)
 
@@ -83,8 +83,8 @@ def train(model, device, train_loader, optimizer, epoch, log_spacing = 7200, sav
         sum_num_correct += correct_pixels
 
         sum_loss += loss.item()
-        loss.backward()
-        optimizer.step()
+        loss.backward()  # take loss object and calculate gradient; updates optimizer
+        optimizer.step()  # update model parameters with loss gradient
 
         #update per-class accuracies
         if(per_class):
@@ -171,52 +171,3 @@ def print_log(correct_pixels, loss, num_samples, batch_size, name, use_acc_dict 
                     100*acc_dict[class_type][1]/total, 100*acc_dict[class_type][2]/total))
     print('--------------------------------------------------------------')
 
-def training_procedure(train_dataset, test_dataset, daniels_photos):
-    # ------------------ Training Parameters ----------------------#
-    args = dict()
-    args["seed"] = 73912
-    args["no_cuda"] = False
-    args["batch_size"] = 32
-    args["test-batch-size"] = 1000
-    #--------------------------------------------------------------#
-
-
-    # ---------------------- Hyperparameters ----------------------#
-    params = dict()
-    params["epochs"] = 10
-    params["lr"] = 0.1
-    #--------------------------------------------------------------#
-
-
-    # ------------- Sets up pseudo-random number generator and GPU ----------#
-    torch.manual_seed(args["seed"])
-    use_cuda = not args["no_cuda"] and torch.cuda.is_available()
-    device = torch.device("cuda" if use_cuda else "cpu")
-    kwargs = {'num_workers': 1, 'pin_memory': True} if use_cuda else {}
-    # -----------------------------------------------------------------------#
-
-
-    # Wrap training and testing data into pytorch DataLoader for easy manipulation
-    train_loader = torch.utils.data.DataLoader(train_dataset,
-                        batch_size=args["batch_size"], shuffle=True, **kwargs)
-
-    test_loader = torch.utils.data.DataLoader(test_dataset,
-                        batch_size=args["test-batch-size"], shuffle=True, **kwargs)
-
-
-    # Set up our FCN
-    model = FCN().to(device)
-    optimizer = optim.Adam(lr = params["lr"])  # IS ADAM ACTUALLY A GOOD OPTIMZER FOR US?
-
-    # Train the model
-    for epoch in range(1, params["epochs"] + 1):
-        train(model, device, train_loader, optimizer, epoch)
-        test(model, device, test_loader)
-
-
-if __name__ == '__main__':
-    # call data_loading.py script to load datasets
-    train_dataset, test_dataset = load_datasets()
-
-    # run our training procedure
-    training_procedure(train_dataset, test_dataset)
