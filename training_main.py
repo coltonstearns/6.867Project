@@ -43,12 +43,12 @@ if __name__ == '__main__':
 
     #img_path = "/home/arjun/MIT/6.867/project/bdd100k_images/bdd100k/images/100k"
     #test_path = "/home/arjun/MIT/6.867/project/bdd100k_drivable_maps/bdd100k/drivable_maps/labels"
-    img_path = "C:/Users/Arjun/6.867Project/images/bdd100k/images/100k"
-    test_path = "C:/Users/Arjun/6.867Project/images/bdd100k/drivable_maps/labels"
+    #img_path = "C:/Users/Arjun/6.867Project/images/bdd100k/images/100k"
+    #test_path = "C:/Users/Arjun/6.867Project/images/bdd100k/drivable_maps/labels"
 
     print("Initializing Dataset ... ")
     #load datasets
-    train_dataset, test_dataset = load_datasets(img_path, test_path)
+    train_dataset, test_dataset = load_datasets()
     train_loader = DataLoader(train_dataset, batch_size = DEFAULT_BATCH, shuffle = False,
                              num_workers = 1 if USE_CUDA else 0, pin_memory = USE_CUDA)
     test_loader = DataLoader(test_dataset, batch_size = DEFAULT_BATCH, shuffle = False,

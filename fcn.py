@@ -18,13 +18,13 @@ class FCN(nn.Module):  # inherit from base class torch.nn.Module
         super(FCN, self).__init__()  # initialize Module characteristics
         
         self.save_dir = save_dir
-        # goes from (720 x 720 x 3) to (353 x 353 x 30)
+        # goes from (720 x 720 x 3) to (353 x 353 x 8)
         self.conv1 = nn.Conv2d(3, 8, kernel_size=6, stride = 2, padding = 0, dilation = 3)
 
-        # goes from (353 x 353 x 30) to (175 x 175 x 90)
+        # goes from (353 x 353 x 8) to (175 x 175 x 16)
         self.conv2 = nn.Conv2d(8, 16, kernel_size=5, stride = 2, padding = 0, dilation = 1)
 
-        # goes from (353 x 353 x 90) to (72 x 72 x 90)
+        # goes from (175 x 175 x 16) to (36 x 36 x 8)
         self.conv3 = nn.Conv2d(16, 8, kernel_size=4, stride = 5, padding = 3, dilation = 1)
 
         # reduce tensor to simple 3D value; this will be our result
@@ -97,22 +97,32 @@ def train(model, device, train_loader, optimizer, epoch, log_spacing = 7200, sav
             print('Saving Model to: ' + str(model.save_dir))
             model.save()
 
+
 def get_per_class_accuracy(pred, target, acc_dict):
-    #TODO use numpy
-    #go through all image indices in the image
-    print("getting per class accuracy")
-    num_correct = 0
-    for image_idx in range(pred.shape[0]):
-        pred_image = pred[image_idx, :, :]
-        target_image = target[image_idx, :, :]
-        for i in range(pred.shape[1]):
-            for j in range(pred.shape[2]):
-                acc_dict[target_image[i, j]][pred_image[i, j]] += 1
-                if(target_image[i, j] == pred_image[i, j]):
-                    num_correct += 1
-    print("done getting per class accuracy")
-    return num_correct
-    
+    """
+    Takes in a batch of predictions and targets as pytorch tensors, as well as an accuracy matrix. Mutates the 
+    accuracy matrix by summing the prediction-target pixel-wise accuracies in each entry.
+
+    Args:
+        pred (torch.tensor): 3D tensor. Axis 0 has each image output, axes 1 and 2 define the predicted output; each entry
+           will be 0, 1, or 2 depending on the class
+        target (torch.tensor): same as pred, but the correct target
+        acc_dict (2d list): a 3 by 3 matrix containing accuracies of pixel ratings. acc_dict[0][1] indicates pixels that the 
+            prediction labeled class 0, but the target labeled class 1
+    """
+
+    prediction_numpy, target_numpy = pred.data.numpy(), target.data.numpy()
+
+    def prediction_error(predicted_label, target_label):
+        """
+        To get the number of times our output label is 0, but the target is 2, we would call
+        prediction_error(predicted_label = 0, target_label = 2)
+        """
+        return len(np.where(np.logical_not(np.logical_or(prediction_numpy - predicted_label, target_numpy - target_label)))[0])
+
+    for i in range(len(acc_dict)):
+        for j in range(len(acc_dict[i])):
+            acc_dict[i][j] += prediction_error(i, j)
 
 
 def test(model, device, test_loader, dataset_name="Test set", iters_per_log = 7000):
@@ -141,13 +151,14 @@ def test(model, device, test_loader, dataset_name="Test set", iters_per_log = 70
 
             correct_pixels = pred.eq(target.view_as(pred)).sum().item()
             correct += correct_pixels
-
+            
+            get_per_class_accuracy(pred, target, acc_dict)
             #verify_pixels = get_per_class_accuracy(pred, target, acc_dict)
             #assert(verify_pixels == correct_pixels)
             batches_done += 1
 
             if(batches_done % iters_per_log == 0):
-                print_log(correct, test_loss, batches_done, test_loader.batch_size, dataset_name, False, acc_dict)
+                print_log(correct, test_loss, batches_done, test_loader.batch_size, dataset_name, True, acc_dict)
 
         print_log(correct, test_loss, len(test_loader.dataset), 1, dataset_name, True, acc_dict)       
 
