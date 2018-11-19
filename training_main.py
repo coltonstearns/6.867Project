@@ -42,10 +42,10 @@ if __name__ == '__main__':
 
     print("using " + DEFAULT_DEVICE + " ---- batch_size = " + str(DEFAULT_BATCH))
 
-    img_path = "/home/arjun/MIT/6.867/project/bdd100k_images/bdd100k/images/100k"
-    test_path = "/home/arjun/MIT/6.867/project/bdd100k_drivable_maps/bdd100k/drivable_maps/labels"
-    #img_path = "C:/Users/Arjun/6.867Project/images/bdd100k/images/100k"
-    #test_path = "C:/Users/Arjun/6.867Project/images/bdd100k/drivable_maps/labels"
+    #img_path = "/home/arjun/MIT/6.867/project/bdd100k_images/bdd100k/images/100k"
+    #test_path = "/home/arjun/MIT/6.867/project/bdd100k_drivable_maps/bdd100k/drivable_maps/labels"
+    img_path = "C:/Users/Arjun/6.867Project/images/bdd100k/images/100k"
+    test_path = "C:/Users/Arjun/6.867Project/images/bdd100k/drivable_maps/labels"
 
     print("Initializing Dataset ... ")
     #load datasets
@@ -75,7 +75,8 @@ if __name__ == '__main__':
 
         #train the model for a set number of epochs
         for epoch in range(epochs):
-            train(segmentation_model, torch.device(DEFAULT_DEVICE), train_loader, optimizer, epoch, per_class=args.per_class)
+            train(segmentation_model, torch.device(DEFAULT_DEVICE), train_loader, optimizer, epoch,
+                             log_spacing = args.log_iters, per_class=args.per_class)
             segmentation_model.save()
             test(segmentation_model, torch.device(DEFAULT_DEVICE), test_loader, iters_per_log = args.log_iters)
 
