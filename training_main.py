@@ -10,6 +10,7 @@ import argparse
 from tqdm import tqdm
 from data_loading import DeepDriveDataset, load_datasets
 from fcn import FCN, train, test
+from vgg16 import VGG16
 
 
 
@@ -45,12 +46,12 @@ if __name__ == '__main__':
 
     #img_path = "/home/arjun/MIT/6.867/project/bdd100k_images/bdd100k/images/100k"
     #test_path = "/home/arjun/MIT/6.867/project/bdd100k_drivable_maps/bdd100k/drivable_maps/labels"
-    #img_path = "C:/Users/Arjun/6.867Project/images/bdd100k/images/100k"
-    #test_path = "C:/Users/Arjun/6.867Project/images/bdd100k/drivable_maps/labels"
+    img_path = "C:/Users/Arjun/6.867Project/images/bdd100k/images/100k"
+    test_path = "C:/Users/Arjun/6.867Project/images/bdd100k/drivable_maps/labels"
 
     print("Initializing Dataset ... ")
     #load datasets
-    train_dataset, test_dataset = load_datasets()
+    train_dataset, test_dataset = load_datasets(img_path, test_path)
     train_loader = DataLoader(train_dataset, batch_size = DEFAULT_BATCH, shuffle = False,
                              num_workers = 1 if USE_CUDA else 0, pin_memory = USE_CUDA)
     test_loader = DataLoader(test_dataset, batch_size = DEFAULT_BATCH, shuffle = False,
@@ -60,7 +61,7 @@ if __name__ == '__main__':
     print("Initializing FCN for Segmentation...")
 
     #intialize model
-    segmentation_model = FCN(args.save_dir)
+    segmentation_model = VGG16(args.save_dir)
 
     if not args.load_dir == '':
         with open(args.load_dir, 'rb') as f:
@@ -76,7 +77,8 @@ if __name__ == '__main__':
 
         #train the model for a set number of epochs
         for epoch in range(epochs):
-            train(segmentation_model, torch.device(DEFAULT_DEVICE), train_loader, optimizer, epoch, per_class=args.per_class)
+            train(segmentation_model, torch.device(DEFAULT_DEVICE), train_loader, optimizer, epoch,
+                             log_spacing = args.log_iters, per_class=args.per_class)
             segmentation_model.save()
             test(segmentation_model, torch.device(DEFAULT_DEVICE), test_loader, iters_per_log = args.log_iters)
 
