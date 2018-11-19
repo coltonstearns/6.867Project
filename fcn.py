@@ -5,6 +5,8 @@ import torch.optim as optim
 import matplotlib.pyplot as plt
 import numpy as np
 from tqdm import tqdm
+from PIL import Image
+
 
 # import our pytorch formatted datasets from data_loading.py script
 from data_loading import load_datasets
@@ -111,7 +113,7 @@ def get_per_class_accuracy(pred, target, acc_dict):
             prediction labeled class 0, but the target labeled class 1
     """
 
-    prediction_numpy, target_numpy = pred.data.numpy(), target.data.numpy()
+    prediction_numpy, target_numpy = pred.cpu().data.numpy(), target.cpu().data.numpy()
 
     def prediction_error(predicted_label, target_label):
         """
@@ -125,7 +127,7 @@ def get_per_class_accuracy(pred, target, acc_dict):
             acc_dict[i][j] += prediction_error(i, j)
 
 
-def test(model, device, test_loader, dataset_name="Test set", iters_per_log = 7000):
+def test(model, device, test_loader, dataset_name="Test set", iters_per_log = 7000, visualize = False):
     model.eval()
     test_loss = 0
     correct = 0
@@ -159,6 +161,9 @@ def test(model, device, test_loader, dataset_name="Test set", iters_per_log = 70
 
             if(batches_done % iters_per_log == 0):
                 print_log(correct, test_loss, batches_done, test_loader.batch_size, dataset_name, True, acc_dict)
+                if visualize:
+                    visualize_output(pred, target)
+
 
         print_log(correct, test_loss, len(test_loader.dataset), 1, dataset_name, True, acc_dict)       
 
@@ -181,4 +186,22 @@ def print_log(correct_pixels, loss, num_samples, batch_size, name, use_acc_dict 
                 print(' {}     | {} |   {}   |   {}   |   {}   |'.format(class_type, total, 100*acc_dict[class_type][0]/total, 
                     100*acc_dict[class_type][1]/total, 100*acc_dict[class_type][2]/total))
     print('--------------------------------------------------------------')
+
+
+def visualize_output(pred, target):
+    """
+    Args:
+        pred (torch.tensor): 3D tensor. Axis 0 has each image output, axes 1 and 2 define the predicted output; each entry
+            will be 0, 1, or 2 depending on the class
+        target (torch.tensor): same as pred, but the correct target
+    """
+
+    prediction_numpy, target_numpy = pred.cpu().data.numpy()[0,:,:], target.cpu().data.numpy()[0,:,:]
+    total_image = (np.hstack((prediction_numpy, target_numpy))*100)
+    total_image = np.array(total_image, dtype = np.uint8).T
+
+    # show actual target
+    image = Image.fromarray(total_image, "L")
+    image.show()
+
 

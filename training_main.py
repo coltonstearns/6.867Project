@@ -29,6 +29,7 @@ if __name__ == '__main__':
     parser.add_argument('--cuda', '-c', action = "store_true", help = "Flag to use cuda for training and testing")
     parser.add_argument('--per_class', action="store_true", help="Flag to output per class data during training")
     parser.add_argument('--batch_size', type = int, action= "store", help = "set the batch size for training and testing", default=1)
+    parser.add_argument('--visualize_output', "-vis", action = "store_true", help = "visualize the output every <log_iters> for testing")
 
     args = parser.parse_args()
 
@@ -81,6 +82,6 @@ if __name__ == '__main__':
     else:
         print("Successful initialization!")
         print("testing...")
-        test(segmentation_model, torch.device(DEFAULT_DEVICE), test_loader, iters_per_log=args.log_iters)
+        test(segmentation_model, torch.device(DEFAULT_DEVICE), test_loader, iters_per_log=args.log_iters, visualize = args.visualize_output)
 
 
