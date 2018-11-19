@@ -93,7 +93,7 @@ def train(model, device, train_loader, optimizer, epoch, log_spacing = 7200, sav
             get_per_class_accuracy(pred, target, acc_dict)
 
         if batch_idx % log_spacing == 0:
-            print_log(correct_pixels, sum_loss, batch_idx + 1, train_loader.batch_size, "Training Set", per_class, acc_dict)
+            print_log(sum_num_correct, sum_loss, batch_idx + 1, train_loader.batch_size, "Training Set", per_class, acc_dict)
 
         if batch_idx % save_spacing == 0:
             print('Saving Model to: ' + str(model.save_dir))
@@ -112,8 +112,7 @@ def get_per_class_accuracy(pred, target, acc_dict):
         acc_dict (2d list): a 3 by 3 matrix containing accuracies of pixel ratings. acc_dict[0][1] indicates pixels that the 
             prediction labeled class 0, but the target labeled class 1
     """
-
-    prediction_numpy, target_numpy = pred.cpu().data.numpy(), target.cpu().data.numpy()
+    prediction_numpy, target_numpy = pred.cpu().numpy(), target.cpu().numpy()
 
     def prediction_error(predicted_label, target_label):
         """
@@ -196,7 +195,7 @@ def visualize_output(pred, target):
         target (torch.tensor): same as pred, but the correct target
     """
 
-    prediction_numpy, target_numpy = pred.cpu().data.numpy()[0,:,:], target.cpu().data.numpy()[0,:,:]
+    prediction_numpy, target_numpy = pred.cpu().numpy()[0,:,:], target.cpu().numpy()[0,:,:]
     total_image = (np.hstack((prediction_numpy, target_numpy))*100)
     total_image = np.array(total_image, dtype = np.uint8).T
 
