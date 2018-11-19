@@ -80,7 +80,7 @@ if __name__ == '__main__':
             train(segmentation_model, torch.device(DEFAULT_DEVICE), train_loader, optimizer, epoch,
                              log_spacing = args.log_iters, per_class=args.per_class)
             segmentation_model.save()
-            test(segmentation_model, torch.device(DEFAULT_DEVICE), test_loader, iters_per_log = args.log_iters)
+            test(segmentation_model, torch.device(DEFAULT_DEVICE), test_loader, use_crf = False, iters_per_log = args.log_iters)
 
     else:
         print("Successful initialization!")

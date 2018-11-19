@@ -123,7 +123,7 @@ def get_per_class_accuracy(pred, target, acc_dict):
 
     for i in range(len(acc_dict)):
         for j in range(len(acc_dict[i])):
-            acc_dict[i][j] += prediction_error(i, j)
+            acc_dict[j][i] += prediction_error(i, j)
 
 
 def test(model, device, test_loader, dataset_name="Test set", use_crf = True, iters_per_log = 7000, visualize = False):
