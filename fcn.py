@@ -7,13 +7,12 @@ import numpy as np
 from tqdm import tqdm
 from PIL import Image
 
-
-# import our pytorch formatted datasets from data_loading.py script
+# our own code imports
 from data_loading import load_datasets
-
+from crf import crf_batch_postprocessing
 
 '''
-Every image is 1280 x 720 pixels, but we will input training chunks of 720 x 720 pixels.
+Every image is 1280 x 720 pixels.
 '''
 class FCN(nn.Module):  # inherit from base class torch.nn.Module
     def __init__(self, save_dir):
@@ -65,13 +64,14 @@ def train(model, device, train_loader, optimizer, epoch, log_spacing = 7200, sav
     sum_num_correct = 0
     sum_loss = 0
     num_batches_since_log = 0
-    loss_func = nn.CrossEntropyLoss(reduction = "elementwise_mean")
+    loss_func = nn.CrossEntropyLoss(reduction = "none")
     acc_dict = [[0.0, 0.0, 0.0],
                 [0.0, 0.0, 0.0],
                 [0.0, 0.0, 0.0]]
 
     # run through data in batches, train network on each batch
     for batch_idx, (data, target) in tqdm(enumerate(train_loader)):
+        loss_vec = torch.Tensor([0., 0., 0.])
         data, target = data.to(device), target.to(device)
         optimizer.zero_grad()  # reset gradient to 0 (so doesn't accumulate)
         output = model(data)  # runs batch through the model
@@ -83,7 +83,8 @@ def train(model, device, train_loader, optimizer, epoch, log_spacing = 7200, sav
 
         correct_pixels = pred.eq(target.view_as(pred)).sum().item()
         sum_num_correct += correct_pixels
-
+        get_per_class_loss(loss, target, loss_vec)
+        loss = torch.sum(loss_vec)
         sum_loss += loss.item()
         loss.backward()  # take loss object and calculate gradient; updates optimizer
         optimizer.step()  # update model parameters with loss gradient
@@ -93,12 +94,21 @@ def train(model, device, train_loader, optimizer, epoch, log_spacing = 7200, sav
             get_per_class_accuracy(pred, target, acc_dict)
 
         if batch_idx % log_spacing == 0:
+            print("Loss Vec: {}".format(loss_vec))
             print_log(sum_num_correct, sum_loss, batch_idx + 1, train_loader.batch_size, "Training Set", per_class, acc_dict)
 
         if batch_idx % save_spacing == 0:
             print('Saving Model to: ' + str(model.save_dir))
             model.save()
 
+def get_per_class_loss(loss, target, loss_vec):
+    for i in range(len(loss_vec)):
+        mask = target.eq(i)
+        total_num = torch.sum(mask)
+        if(total_num.item() > 0):
+            loss_vec[i] = torch.sum(torch.masked_select(loss, mask))/total_num.item()
+        else:
+            loss_vec[i] = torch.sum(torch.masked_select(loss, mask))
 
 def get_per_class_accuracy(pred, target, acc_dict):
     """
@@ -123,10 +133,10 @@ def get_per_class_accuracy(pred, target, acc_dict):
 
     for i in range(len(acc_dict)):
         for j in range(len(acc_dict[i])):
-            acc_dict[i][j] += prediction_error(i, j)
+            acc_dict[j][i] += prediction_error(i, j)
 
 
-def test(model, device, test_loader, dataset_name="Test set", iters_per_log = 7000, visualize = False):
+def test(model, device, test_loader, dataset_name="Test set", use_crf = True, iters_per_log = 7000, visualize = False):
     model.eval()
     test_loss = 0
     correct = 0
@@ -143,7 +153,11 @@ def test(model, device, test_loader, dataset_name="Test set", iters_per_log = 70
     with torch.no_grad():
         for batch_idx, (data, target) in tqdm(enumerate(test_loader)):  # runs through trainer
             data, target = data.to(device), target.to(device)
-            output = model(data)
+            if use_crf:
+                output = crf_batch_postprocessing(data, model(data))
+            else:
+                output = model(data)
+
             test_loss += loss_func(output, target).item()
 
             ##convert into 1 channel image with values 
@@ -154,15 +168,12 @@ def test(model, device, test_loader, dataset_name="Test set", iters_per_log = 70
             correct += correct_pixels
             
             get_per_class_accuracy(pred, target, acc_dict)
-            #verify_pixels = get_per_class_accuracy(pred, target, acc_dict)
-            #assert(verify_pixels == correct_pixels)
             batches_done += 1
 
             if(batches_done % iters_per_log == 0):
                 print_log(correct, test_loss, batches_done, test_loader.batch_size, dataset_name, True, acc_dict)
                 if visualize:
                     visualize_output(pred, target)
-
 
         print_log(correct, test_loss, len(test_loader.dataset), 1, dataset_name, True, acc_dict)       
 
@@ -195,7 +206,9 @@ def visualize_output(pred, target):
         target (torch.tensor): same as pred, but the correct target
     """
 
-    prediction_numpy, target_numpy = pred.cpu().numpy()[0,:,:], target.cpu().numpy()[0,:,:]
+    prediction_numpy, target_numpy = pred.cpu().data.numpy()[0,:,:], target.cpu().data.numpy()[0,:,:]
+    print(prediction_numpy.shape)
+    print(target_numpy.shape)
     total_image = (np.hstack((prediction_numpy, target_numpy))*100)
     total_image = np.array(total_image, dtype = np.uint8).T
 

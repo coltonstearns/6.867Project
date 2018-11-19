@@ -31,6 +31,7 @@ if __name__ == '__main__':
     parser.add_argument('--per_class', action="store_true", help="Flag to output per class data during training")
     parser.add_argument('--batch_size', type = int, action= "store", help = "set the batch size for training and testing", default=1)
     parser.add_argument('--visualize_output', "-vis", action = "store_true", help = "visualize the output every <log_iters> for testing")
+    parser.add_argument('--use_crf', "-crf", action = "store_true", help = "postprocess data with the CRF for testing")
 
     args = parser.parse_args()
 
@@ -79,11 +80,11 @@ if __name__ == '__main__':
             train(segmentation_model, torch.device(DEFAULT_DEVICE), train_loader, optimizer, epoch,
                              log_spacing = args.log_iters, per_class=args.per_class)
             segmentation_model.save()
-            test(segmentation_model, torch.device(DEFAULT_DEVICE), test_loader, iters_per_log = args.log_iters)
+            test(segmentation_model, torch.device(DEFAULT_DEVICE), test_loader, use_crf = False, iters_per_log = args.log_iters)
 
     else:
         print("Successful initialization!")
         print("testing...")
-        test(segmentation_model, torch.device(DEFAULT_DEVICE), test_loader, iters_per_log=args.log_iters, visualize = args.visualize_output)
+        test(segmentation_model, torch.device(DEFAULT_DEVICE), test_loader, use_crf = args.use_crf, iters_per_log=args.log_iters, visualize = args.visualize_output)
 
 
