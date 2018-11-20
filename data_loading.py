@@ -168,10 +168,12 @@ class DeepDriveDataset(data.Dataset):
 
         # perform equivalent transform on BOTH image and target 
         if self.transform is not None:
-            sample, target = self.transform(sample, target)
+            sample, target = self.transform(np.array(sample, dtype = np.float64), np.array(target))
+        else:
+            sample, target = np.array(sample), np.array(target)
 
-        target = torch.LongTensor(np.array(target).T)
-        sample = torch.FloatTensor(np.array(sample).T)
+        target = torch.LongTensor(target.T)
+        sample = torch.FloatTensor(sample.T)
         return sample, target
 
 
@@ -219,6 +221,25 @@ def random_crop_images(width, height, crop_width, crop_height):
 
     return crop_images
 
+def normalize_pixel_values(image, target):
+    """
+    Subtracts out the mean for each RGB value of the image, and returns a new
+    normalized representation of the image.
+
+    Args:
+        image (np.array): numpy array representation of image; dim = (height, width, 3)
+        target (np.array): numpy array representation of target; dim = (height, width, num_classes)
+    Return:
+        new_image, new_target: same dimesion arrays with a normalized image
+    """
+    new_image = np.empty(image.shape)
+    for i in range(3):
+        new_image[:, :, i] = image[:, :, i] - np.mean(image[:, :, i])
+
+    return (new_image, target)
+
+
+
 
 
 def load_datasets(image_dir = "C:/Users/cstea/Documents/6.867 Final Project/bdd100k_images/bdd100k/images/100k",
@@ -235,9 +256,9 @@ def load_datasets(image_dir = "C:/Users/cstea/Documents/6.867 Final Project/bdd1
 
     # load train and test datasets given my PC's folder paths
 
-    train_dataset = DeepDriveDataset(image_dir + "/train", label_dir + "/train") 
+    train_dataset = DeepDriveDataset(image_dir + "/train", label_dir + "/train", transform = normalize_pixel_values) 
                                         #transform = random_crop_images(1280, 720, 720, 720))
-    test_dataset = DeepDriveDataset(image_dir + "/val", label_dir + "/val")
+    test_dataset = DeepDriveDataset(image_dir + "/val", label_dir + "/val", transform = normalize_pixel_values)
                                          #$transform = random_crop_images(1280, 720, 720, 720))
 
     return train_dataset, test_dataset

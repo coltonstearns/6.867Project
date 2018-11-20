@@ -168,10 +168,10 @@ class DeepDriveDataset(data.Dataset):
 
         # perform equivalent transform on BOTH image and target 
         if self.transform is not None:
-            sample, target = self.transform(sample, np.array(target))
+            sample, target = self.transform(np.array(sample, dtype = np.float64), np.array(target))
 
-        target = torch.LongTensor(np.array(target).T)
-        sample = torch.FloatTensor(np.array(sample).T)
+        target = torch.LongTensor(target.T)
+        sample = torch.FloatTensor(sample.T)
         return sample, target
 
 
@@ -224,12 +224,17 @@ def random_crop_images(width, height, crop_width, crop_height):
 Transforms target to only have the first class, and then all other classes combined.
 
 Args:
-    image (anything): image will not be affected
+    image (np.array): numpy array representing the input image in RGB values; dims = (height, width, 3)
     target (np.array): numpy array representation of target
 '''
-def only_two_classes(image, target):
+def preprocess(image, target):
     new_target = np.where(target != 0, 1, 0)
-    return (image, new_target)
+    new_image = np.empty(image.shape)
+
+    for i in range(3):
+        new_image[:, :, i] = image[:, :, i] - np.mean(image[:, :, i])
+
+    return (new_image, new_target)
 
 
 
@@ -247,9 +252,9 @@ def load_datasets(image_dir = "C:/Users/cstea/Documents/6.867 Final Project/bdd1
 
     # load train and test datasets given my PC's folder paths
 
-    train_dataset = DeepDriveDataset(image_dir + "/train", label_dir + "/train", transform = only_two_classes) 
+    train_dataset = DeepDriveDataset(image_dir + "/train", label_dir + "/train", transform = preprocess) 
                                         #transform = random_crop_images(1280, 720, 720, 720))
-    test_dataset = DeepDriveDataset(image_dir + "/val", label_dir + "/val", transform = only_two_classes)
+    test_dataset = DeepDriveDataset(image_dir + "/val", label_dir + "/val", transform = preprocess)
                                          #$transform = random_crop_images(1280, 720, 720, 720))
 
     return train_dataset, test_dataset
