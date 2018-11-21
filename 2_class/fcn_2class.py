@@ -9,7 +9,7 @@ from PIL import Image
 
 # our own code imports
 from data_loading_2class import load_datasets
-# from crf import crf_batch_postprocessing
+from crf_2class import crf_batch_postprocessing
  
 
 def train(model, device, train_loader, optimizer, epoch, log_spacing = 7200, save_spacing = 100, per_class = False):
@@ -119,11 +119,11 @@ def test(model, device, test_loader, dataset_name="Test set", use_crf = True, it
     with torch.no_grad():
         for batch_idx, (data, target) in tqdm(enumerate(test_loader)):  # runs through trainer
             data, target = data.to(device), target.to(device)
-            # if use_crf:
-            #     output = crf_batch_postprocessing(data, model(data))
-            # else:
-            #     output = model(data)
-            output = model(data)
+            if use_crf:
+                output = crf_batch_postprocessing(data, model(data))
+            else:
+                output = model(data)
+
             test_loss += loss_func(output, target).item()
 
             ##convert into 1 channel image with values 

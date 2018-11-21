@@ -11,7 +11,7 @@ from tqdm import tqdm
 
 from data_loading_2class import DeepDriveDataset, load_datasets
 from fcn_2class import train, test
-from vgg16_2class import VGG16
+from vgg16_deconv_2class import VGG16
 
 
 
