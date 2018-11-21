@@ -9,7 +9,8 @@ import sys
 import argparse
 from tqdm import tqdm
 from data_loading import DeepDriveDataset, load_datasets
-from fcn import FCN, train, test
+from fcn import FCN
+from train_utils import train, test
 from vgg16 import VGG16
 
 
