@@ -3,7 +3,7 @@ import pydensecrf.densecrf as dcrf
 from pydensecrf.utils import unary_from_softmax
 from PIL import Image
 
-from data_loading import load_datasets
+from data_loading_2class import load_datasets
 import torch
 
 def crf_batch_postprocessing(image_batch, output_batch):
@@ -51,11 +51,11 @@ def crf_postprocessing(original_image, fcn_output):
     # define a compatability matrix for misclassifying objects
     # this matrix says it is 5x worse to classify drivable as not drivable
     # vs current lane as other lane
-    compatability_matrix = np.array([[0., 3.],
-                                     [3., 0.]]).astype(np.float32)
-    location_xy_stdev = 3
-    color_xy_stdev = 80
-    color_rgb_stdev = 15
+    compatability_matrix = np.array([[0., 1.],
+                                     [1., 0.]]).astype(np.float32)
+    location_xy_stdev = 2
+    color_xy_stdev = 20
+    color_rgb_stdev = 5
     num_smoothing_iters = 1
     # ==============================================================================================
 
@@ -63,7 +63,7 @@ def crf_postprocessing(original_image, fcn_output):
     dense_crf.addPairwiseGaussian(sxy = location_xy_stdev, compat = compatability_matrix)
 
     # add pairwise connections for Color similarity in CRF
-    dense_crf.addPairwiseBilateral(sxy = color_xy_stdev, srgb = color_rgb_stdev, rgbim = original_image.T.copy(order = 'C'), compat = compatability_matrix*3)
+    dense_crf.addPairwiseBilateral(sxy = color_xy_stdev, srgb = color_rgb_stdev, rgbim = original_image.T.copy(order = 'C'), compat = compatability_matrix*2)
 
     # run 5 iterations of the dense CRF filtering
     Q = dense_crf.inference(num_smoothing_iters)
