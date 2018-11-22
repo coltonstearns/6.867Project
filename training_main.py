@@ -12,6 +12,7 @@ from data_loading import DeepDriveDataset, load_datasets
 from fcn import FCN
 from train_utils import train, test
 from vgg16 import VGG16
+from data_stats import DataStats
 
 
 
@@ -26,7 +27,7 @@ if __name__ == '__main__':
                          dest = 'load_dir', default = '')
     parser.add_argument('--test', '-t', action = "store_true", help = "A flag to say that we are testing the model only")
     parser.add_argument('--save-to', '-s', type = str, help = "A file location to store the model", dest = "save_dir", required=True)
-    parser.add_argument('--log_iters', '-log', type = int, help = "The spacing between log printouts for training and testing", default = 7200)
+    parser.add_argument('--log_iters', '-log', type = int, help = "The spacing between log printouts for training and testing", default = 100)
     parser.add_argument('-lr', type = float, help = "the learning rate to use", default = .001)
     parser.add_argument('--cuda', '-c', action = "store_true", help = "Flag to use cuda for training and testing")
     parser.add_argument('--per_class', action="store_true", help="Flag to output per class data during training")
@@ -45,10 +46,10 @@ if __name__ == '__main__':
 
     print("using " + DEFAULT_DEVICE + " ---- batch_size = " + str(DEFAULT_BATCH))
 
-    #img_path = "/home/arjun/MIT/6.867/project/bdd100k_images/bdd100k/images/100k"
-    #test_path = "/home/arjun/MIT/6.867/project/bdd100k_drivable_maps/bdd100k/drivable_maps/labels"
-    img_path = "C:/Users/Arjun/6.867Project/images/bdd100k/images/100k"
-    test_path = "C:/Users/Arjun/6.867Project/images/bdd100k/drivable_maps/labels"
+    img_path = "/home/arjun/MIT/6.867/project/bdd100k_images/bdd100k/images/100k"
+    test_path = "/home/arjun/MIT/6.867/project/bdd100k_drivable_maps/bdd100k/drivable_maps/labels"
+    #img_path = "C:/Users/Arjun/6.867Project/images/bdd100k/images/100k"
+    #test_path = "C:/Users/Arjun/6.867Project/images/bdd100k/drivable_maps/labels"
 
     print("Initializing Dataset ... ")
     #load datasets
@@ -57,16 +58,21 @@ if __name__ == '__main__':
                              num_workers = 1 if USE_CUDA else 0, pin_memory = USE_CUDA)
     test_loader = DataLoader(test_dataset, batch_size = DEFAULT_BATCH, shuffle = False,
                              num_workers = 1 if USE_CUDA else 0, pin_memory = USE_CUDA)
-    
+
+    #collect dataset statistics
+    training_statistics = DataStats(train_dataset)
+    training_statistics.load_stats("dataset_statistics.out")
+    #except:
+    #    training_statistics.collect_all_stats("dataset_statistics.out")
 
     print("Initializing FCN for Segmentation...")
 
     #intialize model
-    segmentation_model = VGG16(args.save_dir)
+    segmentation_model = FCN(args.save_dir)
 
     if not args.load_dir == '':
         with open(args.load_dir, 'rb') as f:
-            segmentation_model.load_state_dict(torch.load(f))
+            segmentation_model.load_state_dict(torch.load(f, map_location = DEFAULT_DEVICE))
     
     # push model to either cpu or gpu
     segmentation_model.to(torch.device(DEFAULT_DEVICE))
@@ -78,14 +84,14 @@ if __name__ == '__main__':
 
         #train the model for a set number of epochs
         for epoch in range(epochs):
-            train(segmentation_model, torch.device(DEFAULT_DEVICE), train_loader, optimizer, epoch,
+            train(segmentation_model, torch.device(DEFAULT_DEVICE), train_loader, training_statistics, optimizer, epoch,
                              log_spacing = args.log_iters, per_class=args.per_class)
             segmentation_model.save()
-            test(segmentation_model, torch.device(DEFAULT_DEVICE), test_loader, use_crf = False, iters_per_log = args.log_iters)
+            test(segmentation_model, torch.device(DEFAULT_DEVICE), test_loader, training_statistics, use_crf = False, iters_per_log = args.log_iters)
 
     else:
         print("Successful initialization!")
         print("testing...")
-        test(segmentation_model, torch.device(DEFAULT_DEVICE), test_loader, use_crf = args.use_crf, iters_per_log=args.log_iters, visualize = args.visualize_output)
+        test(segmentation_model, torch.device(DEFAULT_DEVICE), test_loader, training_statistics, use_crf = args.use_crf, iters_per_log=args.log_iters, visualize = args.visualize_output)
 
 

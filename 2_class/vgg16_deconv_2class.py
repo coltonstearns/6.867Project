@@ -79,7 +79,7 @@ class VGG16(nn.Module):  # inherit from base class torch.nn.Module
 
         # 10: (640 x 320 x 32) to (1280 x 720 x 16)
         self.final_deconv = nn.ConvTranspose2d(32, 16, kernel_size = 3, stride = 2, padding = 1, output_padding = 1)      
-        self.classify_layer = nn.Conv2d(16, 2, kernel_size = 1, stride = 1)
+        self.classify_layer = nn.Conv2d(16, 3, kernel_size = 1, stride = 1)
         
 
     """

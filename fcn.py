@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 '''
 Every image is 1280 x 720 pixels.
