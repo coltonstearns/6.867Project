@@ -169,6 +169,8 @@ class DeepDriveDataset(data.Dataset):
         # perform equivalent transform on BOTH image and target 
         if self.transform is not None:
             sample, target = self.transform(np.array(sample, dtype = np.float64), np.array(target))
+        else:
+            sample, target = np.array(sample), np.array(target)
 
         target = torch.LongTensor(target.T)
         sample = torch.FloatTensor(sample.T)
@@ -219,6 +221,23 @@ def random_crop_images(width, height, crop_width, crop_height):
 
     return crop_images
 
+def normalize_pixel_values(image, target):
+    """
+    Subtracts out the mean for each RGB value of the image, and returns a new
+    normalized representation of the image.
+
+    Args:
+        image (np.array): numpy array representation of image; dim = (height, width, 3)
+        target (np.array): numpy array representation of target; dim = (height, width, num_classes)
+    Return:
+        new_image, new_target: same dimesion arrays with a normalized image
+    """
+    new_image = np.empty(image.shape)
+    for i in range(3):
+        new_image[:, :, i] = image[:, :, i] - np.mean(image[:, :, i])
+
+    return (new_image, target)
+
 
 '''
 Transforms target to only have the first class, and then all other classes combined.
@@ -237,9 +256,9 @@ def preprocess(image, target):
     return (new_image, new_target)
 
 
-
 def load_datasets(image_dir = "C:/Users/cstea/Documents/6.867 Final Project/bdd100k_images/bdd100k/images/100k",
-                 label_dir = "C:/Users/cstea/Documents/6.867 Final Project/bdd100k_drivable_maps/bdd100k/drivable_maps/labels"):
+                 label_dir = "C:/Users/cstea/Documents/6.867 Final Project/bdd100k_drivable_maps/bdd100k/drivable_maps/labels",
+                 num_classes = 3):
     '''
     Loads the Berkeley Deep Drive Datasets into a pytorch data.Dataset class. Currently has structure of Berkeley Data Folders
     hard coded into loading scheme, and therefore, this function will fail if one modifies the folder structure of the data.
@@ -251,11 +270,16 @@ def load_datasets(image_dir = "C:/Users/cstea/Documents/6.867 Final Project/bdd1
     '''
 
     # load train and test datasets given my PC's folder paths
+    if num_classes == 3:
+        train_dataset = DeepDriveDataset(image_dir + "/train", label_dir + "/train", transform = normalize_pixel_values) 
+        test_dataset = DeepDriveDataset(image_dir + "/val", label_dir + "/val", transform = normalize_pixel_values)
 
-    train_dataset = DeepDriveDataset(image_dir + "/train", label_dir + "/train", transform = preprocess) 
-                                        #transform = random_crop_images(1280, 720, 720, 720))
-    test_dataset = DeepDriveDataset(image_dir + "/val", label_dir + "/val", transform = preprocess)
-                                         #$transform = random_crop_images(1280, 720, 720, 720))
+    elif num_classes == 2:
+        train_dataset = DeepDriveDataset(image_dir + "/train", label_dir + "/train", transform = preprocess) 
+        test_dataset = DeepDriveDataset(image_dir + "/val", label_dir + "/val", transform = preprocess)
+
+    else:
+        assert(False), "Expected num classes to be either 2 or 3"
 
     return train_dataset, test_dataset
 

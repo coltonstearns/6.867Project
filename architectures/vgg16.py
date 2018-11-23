@@ -6,14 +6,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 from tqdm import tqdm
 
-# import our pytorch formatted datasets from data_loading.py script
-from data_loading_2class import load_datasets
-
 '''
 Encoder based on VGG16 architecture (without final fully connected layers)
 '''
 class VGG16(nn.Module):  # inherit from base class torch.nn.Module
-    def __init__(self, save_dir):
+    def __init__(self, save_dir, num_classes):
         super(VGG16, self).__init__()  # initialize Module characteristics
         
         self.save_dir = save_dir
@@ -67,7 +64,7 @@ class VGG16(nn.Module):  # inherit from base class torch.nn.Module
         
         self.reduction_layers = [self.reduction_layer_2, self.reduction_layer_3, self.reduction_layer_4]
 
-        self.classify_layer = nn.Conv2d(96, 2, kernel_size = 1, stride = 1)  # change for smaller network!
+        self.classify_layer = nn.Conv2d(96, num_classes, kernel_size = 1, stride = 1)  # change for smaller network!
         
 
     """

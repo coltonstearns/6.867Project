@@ -8,11 +8,13 @@ import numpy as np
 import sys
 import argparse
 from tqdm import tqdm
-from data_loading import DeepDriveDataset, load_datasets
-from fcn import FCN
-from train_utils import train, test
-from vgg16 import VGG16
-from data_stats import DataStats
+
+from utils.data_loading import DeepDriveDataset, load_datasets
+from architectures.fcn import FCN
+from training.segmentation_trainer import SegmentationTrainer
+from architectures.vgg16 import VGG16
+from architectures.vgg16_deconv import VGG16Deconv
+from utils.data_stats import DataStats
 
 
 
@@ -34,17 +36,20 @@ if __name__ == '__main__':
     parser.add_argument('--batch_size', type = int, action= "store", help = "set the batch size for training and testing", default=1)
     parser.add_argument('--visualize_output', "-vis", action = "store_true", help = "visualize the output every <log_iters> for testing")
     parser.add_argument('--use_crf', "-crf", action = "store_true", help = "postprocess data with the CRF for testing")
+    parser.add_argument('--two_class', '-2', action = "store_true", help = "train on just 2 classes")
+    parser.add_argument('--prior', action = "store_true", help = "post process using prior data")
 
     args = parser.parse_args()
 
     # #TODO parse command line arguments
-    DEFAULT_EPOCHS = 1000
+    DEFAULT_EPOCHS = 10
     epochs = DEFAULT_EPOCHS
     USE_CUDA = args.cuda
     DEFAULT_DEVICE = "cuda" if args.cuda else "cpu"
     DEFAULT_BATCH = args.batch_size
+    NUM_CLASSES = 2 if args.two_class else 3
 
-    print("using " + DEFAULT_DEVICE + " ---- batch_size = " + str(DEFAULT_BATCH))
+    print("using " + DEFAULT_DEVICE + " ---- batch_size = " + str(DEFAULT_BATCH) + " ----- number_of_classes = " + str(NUM_CLASSES))
 
     img_path = "/home/arjun/MIT/6.867/project/bdd100k_images/bdd100k/images/100k"
     test_path = "/home/arjun/MIT/6.867/project/bdd100k_drivable_maps/bdd100k/drivable_maps/labels"
@@ -53,22 +58,22 @@ if __name__ == '__main__':
 
     print("Initializing Dataset ... ")
     #load datasets
-    train_dataset, test_dataset = load_datasets(img_path, test_path)
+    train_dataset, test_dataset = load_datasets(img_path, test_path, num_classes = NUM_CLASSES)
     train_loader = DataLoader(train_dataset, batch_size = DEFAULT_BATCH, shuffle = False,
                              num_workers = 1 if USE_CUDA else 0, pin_memory = USE_CUDA)
     test_loader = DataLoader(test_dataset, batch_size = DEFAULT_BATCH, shuffle = False,
                              num_workers = 1 if USE_CUDA else 0, pin_memory = USE_CUDA)
 
     #collect dataset statistics
-    training_statistics = DataStats(train_dataset)
-    training_statistics.load_stats("dataset_statistics.out")
+    data_statistics = DataStats(train_dataset)
+    data_statistics.load_stats("dataset_statistics.out")
     #except:
     #    training_statistics.collect_all_stats("dataset_statistics.out")
 
     print("Initializing FCN for Segmentation...")
 
     #intialize model
-    segmentation_model = FCN(args.save_dir)
+    segmentation_model = FCN(args.save_dir, NUM_CLASSES)
 
     if not args.load_dir == '':
         with open(args.load_dir, 'rb') as f:
@@ -76,22 +81,20 @@ if __name__ == '__main__':
     
     # push model to either cpu or gpu
     segmentation_model.to(torch.device(DEFAULT_DEVICE))
-    if not args.test:
-        print("Initializing Optimizer...")
-        #intialize optimizer
-        optimizer = optim.Adam(segmentation_model.parameters(), lr = args.lr)
-        print("Successful initialization!")
+    optimizer = optim.Adam(segmentation_model.parameters(), lr = args.lr)
+    trainer = SegmentationTrainer(segmentation_model, DEFAULT_DEVICE, train_loader, test_loader, optimizer, data_statistics,
+                 num_classes = NUM_CLASSES, log_spacing = args.log_iters, per_class = args.per_class)
+    print("Successful initialization!")
 
+    if not args.test:        
         #train the model for a set number of epochs
         for epoch in range(epochs):
-            train(segmentation_model, torch.device(DEFAULT_DEVICE), train_loader, training_statistics, optimizer, epoch,
-                             log_spacing = args.log_iters, per_class=args.per_class)
+            trainer.train(epoch)
             segmentation_model.save()
-            test(segmentation_model, torch.device(DEFAULT_DEVICE), test_loader, training_statistics, use_crf = False, iters_per_log = args.log_iters)
+            test(use_crf = args.use_crf, iters_per_log = args.log_iters, visualize = arge.visualize_output, use_prior = args.prior)
 
     else:
-        print("Successful initialization!")
         print("testing...")
-        test(segmentation_model, torch.device(DEFAULT_DEVICE), test_loader, training_statistics, use_crf = args.use_crf, iters_per_log=args.log_iters, visualize = args.visualize_output)
+        test(use_crf = args.use_crf, iters_per_log = args.log_iters, visualize = args.visualize_output, use_prior = args.prior)
 
 

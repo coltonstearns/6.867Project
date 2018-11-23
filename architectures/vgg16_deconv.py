@@ -6,14 +6,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 from tqdm import tqdm
 
-# import our pytorch formatted datasets from data_loading.py script
-#from data_loading_2class import load_datasets
-
 '''
 Encoder based on VGG16 architecture (without final fully connected layers)
 '''
-class VGG16(nn.Module):  # inherit from base class torch.nn.Module
-    def __init__(self, save_dir):
+class VGG16Deconv(nn.Module):  # inherit from base class torch.nn.Module
+    def __init__(self, save_dir, num_classes):
         super(VGG16, self).__init__()  # initialize Module characteristics
         
         self.save_dir = save_dir
@@ -79,7 +76,7 @@ class VGG16(nn.Module):  # inherit from base class torch.nn.Module
 
         # 10: (640 x 320 x 32) to (1280 x 720 x 16)
         self.final_deconv = nn.ConvTranspose2d(32, 16, kernel_size = 3, stride = 2, padding = 1, output_padding = 1)      
-        self.classify_layer = nn.Conv2d(16, 3, kernel_size = 1, stride = 1)
+        self.classify_layer = nn.Conv2d(16, num_classes, kernel_size = 1, stride = 1)
         
 
     """

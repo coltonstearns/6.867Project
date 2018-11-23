@@ -6,7 +6,7 @@ import torch.nn.functional as F
 Every image is 1280 x 720 pixels.
 '''
 class FCN(nn.Module):  # inherit from base class torch.nn.Module
-    def __init__(self, save_dir):
+    def __init__(self, save_dir, num_classes):
         super(FCN, self).__init__()  # initialize Module characteristics
         
         self.save_dir = save_dir
@@ -20,7 +20,7 @@ class FCN(nn.Module):  # inherit from base class torch.nn.Module
         self.conv3 = nn.Conv2d(16, 8, kernel_size=4, stride = 5, padding = 3, dilation = 1)
 
         # reduce tensor to simple 3D value; this will be our result
-        self.classify_layer = nn.Conv2d(8, 3, kernel_size = 1, stride = 1, padding = 0)
+        self.classify_layer = nn.Conv2d(8, num_classes, kernel_size = 1, stride = 1, padding = 0)
 
     """
     Defines how we perform a forward pass.
