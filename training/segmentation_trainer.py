@@ -101,13 +101,9 @@ class SegmentationTrainer:
                     output = self.model(data)
 
                 if use_prior:
-                    # perform a bayesian posterior calculation, weighting the FCN output twice as much as the prior
-                    output = (output * self.data_statistics.get_distribution())
-                    normalization_constants = torch.sum(output, dim = 0)
-                    output = output / normalization_constants
-            
-                # pixels labeled greater than 70% certainty
-                # print("Confident Pixels: " + str(float(torch.sum(np.e**output > .7)) / 1280 / 720))
+                    alpha = .75
+                    for i in range(len(output)):  # could be multiple images in output batch
+                        output[i] = alpha * output[i] + (1-alpha) * self.data_statistics.get_distribution().to(self.device)
 
                 test_loss += loss_func(output, target).item()
 
@@ -186,7 +182,6 @@ def print_log(correct_pixels, loss, num_samples, batch_size, name, use_acc_dict 
         else:
             print('\n Class |  Samples  | % Class 0 | % Class 1 |')
             for class_type in range(len(acc_dict)):
-                print(acc_dict)
                 total = acc_dict[class_type][0] + acc_dict[class_type][1]
                 if total == 0:
                     print(' {}     |     0     |    n/a    |    n/a    |'.format(class_type))
@@ -205,8 +200,6 @@ def visualize_output(pred, target):
     """
 
     prediction_numpy, target_numpy = pred.cpu().data.numpy()[0,:,:], target.cpu().data.numpy()[0,:,:]
-    print(prediction_numpy.shape)
-    print(target_numpy.shape)
     total_image = (np.hstack((prediction_numpy, target_numpy))*100)
     total_image = np.array(total_image, dtype = np.uint8).T
 

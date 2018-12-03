@@ -46,7 +46,7 @@ class DataStats:
             new_image[i] = image.eq(i)
 
         if self.num_classes == 2:
-            new_image[1] += image.eq(2)
+            new_image[1] += image.eq(2).float()
 
         return new_image
 
