@@ -92,7 +92,7 @@ class SegmentationTrainer:
         batches_done = 0
 
         with torch.no_grad():
-            prior = torch.ones(self.data_statistics.get_distribution().shape) - self.data_statistics.get_distribution()
+            # prior = torch.ones(self.data_statistics.get_distribution().shape) - self.data_statistics.get_distribution()
             for batch_idx, (data, target) in tqdm(enumerate(self.test_loader)):  # runs through trainer
                 data, target = data.to(self.device), target.to(self.device)
                 if use_crf:
@@ -101,10 +101,14 @@ class SegmentationTrainer:
                     output = self.model(data)
 
                 if use_prior:
-                    output = (output**2 * self.data_statistics.get_distribution())  # bayesian relationship, biased toward neural net
+                    # perform a bayesian posterior calculation, weighting the FCN output twice as much as the prior
+                    output = (output**2 * self.data_statistics.get_distribution())
                     normalization_constants = torch.sum(output, dim = 0)
                     output = output / normalization_constants
             
+                # pixels labeled greater than 70% certainty
+                # print("Confident Pixels: " + str(float(torch.sum(np.e**output > .7)) / 1280 / 720))
+
                 test_loss += loss_func(output, target).item()
 
                 #convert into 1 channel image with values 
@@ -118,7 +122,7 @@ class SegmentationTrainer:
                 batches_done += 1
 
                 if(batches_done % self.log_spacing == 0):
-                    print_log(correct, test_loss, batches_done, self.test_loader.batch_size, dataset_name, True, self.training_confusion)
+                    print_log(correct, test_loss, batches_done, self.test_loader.batch_size, dataset_name, True, self.test_confusion)
                     if visualize:
                         visualize_output(pred, target)
 
@@ -161,7 +165,6 @@ def get_per_class_accuracy(pred, target, acc_dict):
 
   
 def print_log(correct_pixels, loss, num_samples, batch_size, name, use_acc_dict = False, acc_dict = None):
-
     loss = loss/(num_samples*batch_size)
     total_samples = num_samples*batch_size*1280*720
     print('\n--------------------------------------------------------------')
@@ -170,15 +173,28 @@ def print_log(correct_pixels, loss, num_samples, batch_size, name, use_acc_dict 
         100. * correct_pixels / total_samples))
 
     if use_acc_dict:
-        print('\n Class |  Samples  | % Class 0 | % Class 1 | %Class 2 |')
-        for class_type in range(len(acc_dict)):
-            total = acc_dict[class_type][0] + acc_dict[class_type][1] + acc_dict[class_type][2]
-            if total == 0: 
-                print(' {}     |     0     |    n/a    |    n/a    |    n/a    |'.format(class_type))
-            else: 
-                print(' {}     | {} |   {}   |   {}   |   {}   |'.format(class_type, total, 100*acc_dict[class_type][0]/total, 
-                    100*acc_dict[class_type][1]/total, 100*acc_dict[class_type][2]/total))
-    print('--------------------------------------------------------------')
+        if acc_dict.shape[0] == 3:
+            print('\n Class |  Samples  | % Class 0 | % Class 1 | %Class 2 |')
+            for class_type in range(len(acc_dict)):
+                total = acc_dict[class_type][0] + acc_dict[class_type][1] + acc_dict[class_type][2]
+                if total == 0: 
+                    print(' {}     |     0     |    n/a    |    n/a    |    n/a    |'.format(class_type))
+                else: 
+                    print(' {}     | {} |   {}   |   {}   |   {}   |'.format(class_type, total, 100*acc_dict[class_type][0]/total, 
+                        100*acc_dict[class_type][1]/total, 100*acc_dict[class_type][2]/total))
+
+        else:
+            print('\n Class |  Samples  | % Class 0 | % Class 1 |')
+            for class_type in range(len(acc_dict)):
+                print(acc_dict)
+                total = acc_dict[class_type][0] + acc_dict[class_type][1]
+                if total == 0:
+                    print(' {}     |     0     |    n/a    |    n/a    |'.format(class_type))
+                else:
+                    print(' {}     | {} |   {}   |   {}   |'.format(class_type, total, 100*acc_dict[class_type][0]/total,
+                        100*acc_dict[class_type][1]/total))
+        print('--------------------------------------------------------------')
+
 
 def visualize_output(pred, target):
     """

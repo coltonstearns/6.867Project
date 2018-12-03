@@ -55,8 +55,10 @@ if __name__ == '__main__':
     # test_path = "/home/arjun/MIT/6.867/project/bdd100k_drivable_maps/bdd100k/drivable_maps/labels"
     #img_path = "C:/Users/Arjun/6.867Project/images/bdd100k/images/100k"
     #test_path = "C:/Users/Arjun/6.867Project/images/bdd100k/drivable_maps/labels"
-    img_path = "C:/Users/cstea/Documents/6.867 Final Project/bdd100k_images/bdd100k/images/100k"
-    test_path = "C:/Users/cstea/Documents/6.867 Final Project/bdd100k_drivable_maps/bdd100k/drivable_maps/labels"
+    # img_path = "C:/Users/cstea/Documents/6.867 Final Project/bdd100k_images/bdd100k/images/100k"
+    # test_path = "C:/Users/cstea/Documents/6.867 Final Project/bdd100k_drivable_maps/bdd100k/drivable_maps/labels"
+    img_path = "C:/Users/sarah/Documents/6.867 Project/bdd100k_images/bdd100k/images/100k"
+    test_path = "C:/Users/sarah/Documents/6.867 Project/bdd100k_drivable_maps/bdd100k/drivable_maps/labels"
 
     print("Initializing Dataset ... ")
     #load datasets
@@ -68,17 +70,17 @@ if __name__ == '__main__':
 
 
     # generate a prior
-    data_statistics = DataStats(train_dataset, NUM_CLASSES)
-    data_statistics.collect_all_stats("python3_prior_distribution.out")
-
-    #collect dataset statistics
     # data_statistics = DataStats(train_dataset, NUM_CLASSES)
-    # data_statistics.load_stats("dataset_statistics.out")
+    # data_statistics.collect_all_stats("python3_prior_distribution.out")
+
+    # load dataset statistics
+    data_statistics = DataStats(train_dataset, NUM_CLASSES)
+    data_statistics.load_stats("dataset_statistics.out")
 
     print("Initializing FCN for Segmentation...")
 
     #intialize model
-    segmentation_model = FCN(args.save_dir, NUM_CLASSES)
+    segmentation_model = VGG16Deconv(args.save_dir, NUM_CLASSES)
 
     if not args.load_dir == '':
         with open(args.load_dir, 'rb') as f:

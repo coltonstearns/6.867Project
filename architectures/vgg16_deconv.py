@@ -11,7 +11,7 @@ Encoder based on VGG16 architecture (without final fully connected layers)
 '''
 class VGG16Deconv(nn.Module):  # inherit from base class torch.nn.Module
     def __init__(self, save_dir, num_classes):
-        super(VGG16, self).__init__()  # initialize Module characteristics
+        super(VGG16Deconv, self).__init__()  # initialize Module characteristics
         
         self.save_dir = save_dir
         self.section_outputs = [None, None, None]
