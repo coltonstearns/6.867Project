@@ -214,6 +214,10 @@ def random_crop_images(width, height, crop_width, crop_height):
     i = np.random.randint(0, width - crop_width) if width != crop_width else 0
     j = np.random.randint(0, height - crop_height) if height != crop_height else 0
 
+    """
+    Obsolete: takes in image and target as PIL images, and not numpy arrays --> does not work
+        with current code!
+    """
     def crop_images(image, target):
         cropped_image = transforms.functional.crop(image, i, j, crop_height, crop_width)
         cropped_target = target.crop((i, j, i + crop_height, j + crop_width))
@@ -246,7 +250,7 @@ Args:
     image (np.array): numpy array representing the input image in RGB values; dims = (height, width, 3)
     target (np.array): numpy array representation of target
 '''
-def preprocess(image, target):
+def preprocess_two_classes(image, target):
     new_target = np.where(target != 0, 1, 0)
     new_image = np.empty(image.shape)
 
@@ -275,8 +279,8 @@ def load_datasets(image_dir = "C:/Users/cstea/Documents/6.867 Final Project/bdd1
         test_dataset = DeepDriveDataset(image_dir + "/val", label_dir + "/val", transform = normalize_pixel_values)
 
     elif num_classes == 2:
-        train_dataset = DeepDriveDataset(image_dir + "/train", label_dir + "/train", transform = preprocess) 
-        test_dataset = DeepDriveDataset(image_dir + "/val", label_dir + "/val", transform = preprocess)
+        train_dataset = DeepDriveDataset(image_dir + "/train", label_dir + "/train", transform = preprocess_two_classes) 
+        test_dataset = DeepDriveDataset(image_dir + "/val", label_dir + "/val", transform = preprocess_two_classes)
 
     else:
         assert(False), "Expected num classes to be either 2 or 3"

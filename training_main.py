@@ -51,10 +51,12 @@ if __name__ == '__main__':
 
     print("using " + DEFAULT_DEVICE + " ---- batch_size = " + str(DEFAULT_BATCH) + " ----- number_of_classes = " + str(NUM_CLASSES))
 
-    img_path = "/home/arjun/MIT/6.867/project/bdd100k_images/bdd100k/images/100k"
-    test_path = "/home/arjun/MIT/6.867/project/bdd100k_drivable_maps/bdd100k/drivable_maps/labels"
+    # img_path = "/home/arjun/MIT/6.867/project/bdd100k_images/bdd100k/images/100k"
+    # test_path = "/home/arjun/MIT/6.867/project/bdd100k_drivable_maps/bdd100k/drivable_maps/labels"
     #img_path = "C:/Users/Arjun/6.867Project/images/bdd100k/images/100k"
     #test_path = "C:/Users/Arjun/6.867Project/images/bdd100k/drivable_maps/labels"
+    img_path = "C:/Users/cstea/Documents/6.867 Final Project/bdd100k_images/bdd100k/images/100k"
+    test_path = "C:/Users/cstea/Documents/6.867 Final Project/bdd100k_drivable_maps/bdd100k/drivable_maps/labels"
 
     print("Initializing Dataset ... ")
     #load datasets
@@ -64,11 +66,14 @@ if __name__ == '__main__':
     test_loader = DataLoader(test_dataset, batch_size = DEFAULT_BATCH, shuffle = False,
                              num_workers = 1 if USE_CUDA else 0, pin_memory = USE_CUDA)
 
+
+    # generate a prior
+    data_statistics = DataStats(train_dataset, NUM_CLASSES)
+    data_statistics.collect_all_stats("python3_prior_distribution.out")
+
     #collect dataset statistics
-    data_statistics = DataStats(train_dataset)
-    data_statistics.load_stats("dataset_statistics.out")
-    #except:
-    #    training_statistics.collect_all_stats("dataset_statistics.out")
+    # data_statistics = DataStats(train_dataset, NUM_CLASSES)
+    # data_statistics.load_stats("dataset_statistics.out")
 
     print("Initializing FCN for Segmentation...")
 
@@ -91,10 +96,10 @@ if __name__ == '__main__':
         for epoch in range(epochs):
             trainer.train(epoch)
             segmentation_model.save()
-            test(use_crf = args.use_crf, iters_per_log = args.log_iters, visualize = arge.visualize_output, use_prior = args.prior)
+            trainer.test(use_crf = args.use_crf, iters_per_log = args.log_iters, visualize = args.visualize_output, use_prior = args.prior)
 
     else:
         print("testing...")
-        test(use_crf = args.use_crf, iters_per_log = args.log_iters, visualize = args.visualize_output, use_prior = args.prior)
+        trainer.test(use_crf = args.use_crf, iters_per_log = args.log_iters, visualize = args.visualize_output, use_prior = args.prior)
 
 

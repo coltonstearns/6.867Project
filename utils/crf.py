@@ -3,7 +3,7 @@ import pydensecrf.densecrf as dcrf
 from pydensecrf.utils import unary_from_softmax
 from PIL import Image
 
-from data_loading import load_datasets
+from utils.data_loading import load_datasets
 import torch
 
 def crf_batch_postprocessing(image_batch, output_batch, num_classes):

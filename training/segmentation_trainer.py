@@ -11,7 +11,7 @@ from PIL import Image
 from utils.crf import crf_batch_postprocessing
 
 class SegmentationTrainer:
-    r"""
+    """
     Class to train segmentation model
     """
     def __init__(self, model, device, train_loader, test_loader, optimizer, data_stats,
@@ -24,7 +24,7 @@ class SegmentationTrainer:
         self.optimizer = optimizer
         self.log_spacing = log_spacing
         self.save_spacing = save_spacing
-        self.per_class = False
+        self.per_class = per_class
         self.training_confusion = np.zeros((num_classes, num_classes))
         self.test_confusion = np.zeros((num_classes, num_classes))
         self.data_statistics = data_stats
@@ -92,16 +92,18 @@ class SegmentationTrainer:
         batches_done = 0
 
         with torch.no_grad():
-            prior = torch.ones(self.dataset_statistics.class_distribution.shape) - self.dataset_statistics.class_distribution
+            prior = torch.ones(self.data_statistics.get_distribution().shape) - self.data_statistics.get_distribution()
             for batch_idx, (data, target) in tqdm(enumerate(self.test_loader)):  # runs through trainer
                 data, target = data.to(self.device), target.to(self.device)
                 if use_crf:
-                    output = crf_batch_postprocessing(data, model(data))
+                    output = crf_batch_postprocessing(data, self.model(data))
                 else:
-                    output = model(data)
+                    output = self.model(data)
 
                 if use_prior:
-                    output = output - prior 
+                    output = (output**2 * self.data_statistics.get_distribution())  # bayesian relationship, biased toward neural net
+                    normalization_constants = torch.sum(output, dim = 0)
+                    output = output / normalization_constants
             
                 test_loss += loss_func(output, target).item()
 
