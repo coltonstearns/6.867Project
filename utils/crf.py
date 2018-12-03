@@ -63,8 +63,8 @@ def crf_postprocessing(original_image, fcn_output, num_classes):
     elif num_classes == 2:
         compatability_matrix = np.array([[0., 1.],
                                      [1., 0.]]).astype(np.float32)
-        location_xy_stdev = 2
-        color_xy_stdev = 20
+        location_xy_stdev = 3
+        color_xy_stdev = 30
         color_rgb_stdev = 5
         num_smoothing_iters = 1
 

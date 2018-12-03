@@ -5,6 +5,7 @@ from utils.data_loading import DeepDriveDataset, load_datasets
 import dill
 from tqdm import tqdm
 import sys
+import pickle
 
 
 class DataStats:
@@ -43,6 +44,10 @@ class DataStats:
         new_image = torch.zeros((self.num_classes, image.shape[0], image.shape[1]), dtype = torch.float32)
         for i in range(self.num_classes):
             new_image[i] = image.eq(i)
+
+        if self.num_classes == 2:
+            new_image[1] += image.eq(2).float()
+
         return new_image
 
     def collect_all_stats(self, outfile):
@@ -69,27 +74,38 @@ class DataStats:
         self.class_distribution /= len(self.dataset)
         self.mean_rgb /= len(self.dataset)
 
-        with open(outfile, "w") as ofile:
-            #save statistics
-            dill.dump([self.class_distribution, self.mean_rgb], ofile)
-    
+        try:
+            with open(outfile, "wb") as ofile:
+                #save statistics
+                dill.dump([self.class_distribution, self.mean_rgb], ofile)
+        except:
+            pass
+
+        try:
+            list_version = [deep_list(self.class_distribution), deep_list(self.mean_rgb)]
+            with open("pickle_" + outfile, "wb") as ofile:
+                #save statistics
+                pickle.dump(list_version, ofile)
+        except:
+            pass
+
     def load_stats(self, infile):
         r"""
         Loads statistics stored in infile
         """
+        with open(infile, "rb") as ifile:
+            self.class_distribution, self.mean_rgb = dill.load(ifile)
 
-        if sys.version_info[0] < 3:
-            with open(infile, "rb") as ifile:
-                self.class_distribution, self.mean_rgb = dill.load(ifile)
-        else:  # using python 3
-            with open(infile, encoding = "latin1") as f:
-                text = f.read()
-                with open("python3_dataset_statistics.out", "wb") as new_file:
-                    new_file.write(text.encode("ascii"))
-            with open("python3_dataset_statistics.out", "rb") as file:
-                self.class_distribution, self.mean_rgb = dill.load(file)
-        assert self.class_distribution.shape == (self.num_classes, self.IMAGE_WIDTH, self.IMAGE_HEIGHT)
 
+def deep_list(input):
+    if len(input.shape) == 0:
+        return float(input)
+
+    current = list(input)
+    for i in range(len(current)):
+        current[i] = deep_list(current[i])
+
+    return current
         
 
 
