@@ -96,13 +96,13 @@ class SegmentationTrainer:
             for batch_idx, (data, target) in tqdm(enumerate(self.test_loader)):  # runs through trainer
                 data, target = data.to(self.device), target.to(self.device)
                 if use_crf:
-                    output = crf_batch_postprocessing(data, self.model(data))
+                    output = crf_batch_postprocessing(data, self.model(data), self.num_classes)
                 else:
                     output = self.model(data)
 
                 if use_prior:
                     # perform a bayesian posterior calculation, weighting the FCN output twice as much as the prior
-                    output = (output**2 * self.data_statistics.get_distribution())
+                    output = (output * self.data_statistics.get_distribution())
                     normalization_constants = torch.sum(output, dim = 0)
                     output = output / normalization_constants
             
