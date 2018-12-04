@@ -95,15 +95,14 @@ class SegmentationTrainer:
             # prior = torch.ones(self.data_statistics.get_distribution().shape) - self.data_statistics.get_distribution()
             for batch_idx, (data, target) in tqdm(enumerate(self.test_loader)):  # runs through trainer
                 data, target = data.to(self.device), target.to(self.device)
-                if use_crf:
-                    output = crf_batch_postprocessing(data, self.model(data), self.num_classes)
-                else:
-                    output = self.model(data)
-
+                output = self.model(data)
                 if use_prior:
                     alpha = .75
                     for i in range(len(output)):  # could be multiple images in output batch
                         output[i] = alpha * output[i] + (1-alpha) * self.data_statistics.get_distribution().to(self.device)
+
+                if use_crf:
+                    output = crf_batch_postprocessing(data, output, self.num_classes)
 
                 test_loss += loss_func(output, target).item()
 

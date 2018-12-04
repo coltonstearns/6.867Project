@@ -61,11 +61,11 @@ def crf_postprocessing(original_image, fcn_output, num_classes):
         num_smoothing_iters = 1
 
     elif num_classes == 2:
-        compatability_matrix = np.array([[0., 1.],
+        compatability_matrix = np.array([[0., .5],
                                      [1., 0.]]).astype(np.float32)
-        location_xy_stdev = 3
-        color_xy_stdev = 30
-        color_rgb_stdev = 5
+        location_xy_stdev = 1
+        color_xy_stdev = 5
+        color_rgb_stdev = 2
         num_smoothing_iters = 1
 
     else:
