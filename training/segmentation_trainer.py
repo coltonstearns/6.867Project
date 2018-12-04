@@ -93,13 +93,20 @@ class SegmentationTrainer:
 
         with torch.no_grad():
             # prior = torch.ones(self.data_statistics.get_distribution().shape) - self.data_statistics.get_distribution()
+            # calculate an UNBIASED prior
+            prior = self.data_statistics.get_distribution().to(self.device)
+            for i in range(self.num_classes):
+                prior[i] = prior[i] / (torch.mean(prior[i]))  #  scales relative probs to have mean of 1
+            normalization = torch.sum(prior, dim = 0)  # sum along classes
+            prior /= normalization
+
             for batch_idx, (data, target) in tqdm(enumerate(self.test_loader)):  # runs through trainer
                 data, target = data.to(self.device), target.to(self.device)
                 output = self.model(data)
                 if use_prior:
                     alpha = .75
                     for i in range(len(output)):  # could be multiple images in output batch
-                        output[i] = alpha * output[i] + (1-alpha) * self.data_statistics.get_distribution().to(self.device)
+                        output[i] = alpha * output[i] + (1-alpha) * prior
 
                 if use_crf:
                     output = crf_batch_postprocessing(data, output, self.num_classes)
