@@ -10,10 +10,14 @@ import argparse
 from tqdm import tqdm
 
 from utils.data_loading import DeepDriveDataset, load_datasets
-from architectures.fcn import FCN
 from training.segmentation_trainer import SegmentationTrainer
-from architectures.vgg16 import VGG16
-from architectures.vgg16_deconv import VGG16Deconv
+
+from architectures.network1 import Network_1
+from architectures.network2 import Network_2
+from architectures.network3 import Network_3
+from architectures.network4 import Network_4
+from architectures.network5 import Network_5
+
 from utils.data_stats import DataStats
 
 
@@ -41,46 +45,61 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    # #TODO parse command line arguments
-    DEFAULT_EPOCHS = 10
-    epochs = DEFAULT_EPOCHS
+    # ====================================== Parameters From Command Line ================================
     USE_CUDA = args.cuda
     DEFAULT_DEVICE = "cuda" if args.cuda else "cpu"
     DEFAULT_BATCH = args.batch_size
     NUM_CLASSES = 2 if args.two_class else 3
+    # ====================================================================================================
 
     print("using " + DEFAULT_DEVICE + " ---- batch_size = " + str(DEFAULT_BATCH) + " ----- number_of_classes = " + str(NUM_CLASSES))
 
-    # img_path = "/home/arjun/MIT/6.867/project/bdd100k_images/bdd100k/images/100k"
-    # test_path = "/home/arjun/MIT/6.867/project/bdd100k_drivable_maps/bdd100k/drivable_maps/labels"
-    #img_path = "C:/Users/Arjun/6.867Project/images/bdd100k/images/100k"
-    #test_path = "C:/Users/Arjun/6.867Project/images/bdd100k/drivable_maps/labels"
-    # img_path = "C:/Users/cstea/Documents/6.867 Final Project/bdd100k_images/bdd100k/images/100k"
-    # test_path = "C:/Users/cstea/Documents/6.867 Final Project/bdd100k_drivable_maps/bdd100k/drivable_maps/labels"
-    img_path = "C:/Users/sarah/Documents/6.867 Project/bdd100k_images/bdd100k/images/100k"
-    test_path = "C:/Users/sarah/Documents/6.867 Project/bdd100k_drivable_maps/bdd100k/drivable_maps/labels"
+    # =================================== More Parameters =============================================
+    prior_distribution_file = "priors/python3_prior.out" if sys.version_info[0] > 2 else "priors/python2_prior.out"
+    EPOCHS = 10
+    # IMG_PATH = "/home/arjun/MIT/6.867/project/bdd100k_images/bdd100k/images/100k"
+    # TEST_PATH = "/home/arjun/MIT/6.867/project/bdd100k_drivable_maps/bdd100k/drivable_maps/labels"
+    #IMG_PATH = "C:/Users/Arjun/6.867Project/images/bdd100k/images/100k"
+    #TEST_PATH = "C:/Users/Arjun/6.867Project/images/bdd100k/drivable_maps/labels"
+    # IMG_PATH = "C:/Users/cstea/Documents/6.867 Final Project/bdd100k_images/bdd100k/images/100k"
+    # TEST_PATH = "C:/Users/cstea/Documents/6.867 Final Project/bdd100k_drivable_maps/bdd100k/drivable_maps/labels"
+    IMG_PATH = "C:/Users/sarah/Documents/6.867 Project/bdd100k_images/bdd100k/images/100k"
+    TEST_PATH = "C:/Users/sarah/Documents/6.867 Project/bdd100k_drivable_maps/bdd100k/drivable_maps/labels"
+
+    # ================================================================================================
+
 
     print("Initializing Dataset ... ")
     #load datasets
-    train_dataset, test_dataset = load_datasets(img_path, test_path, num_classes = NUM_CLASSES)
+    train_dataset, test_dataset = load_datasets(IMG_PATH, TEST_PATH, num_classes = NUM_CLASSES)
     train_loader = DataLoader(train_dataset, batch_size = DEFAULT_BATCH, shuffle = False,
                              num_workers = 1 if USE_CUDA else 0, pin_memory = USE_CUDA)
     test_loader = DataLoader(test_dataset, batch_size = DEFAULT_BATCH, shuffle = False,
                              num_workers = 1 if USE_CUDA else 0, pin_memory = USE_CUDA)
 
-
-    # generate a prior
-    # data_statistics = DataStats(train_dataset, NUM_CLASSES)
-    # data_statistics.collect_all_stats("python3_prior_distribution.out")
-
     # load dataset statistics
     data_statistics = DataStats(train_dataset, NUM_CLASSES)
-    data_statistics.load_stats("dataset_statistics.out")
+    data_statistics.load_stats(prior_distribution_file)
 
     print("Initializing FCN for Segmentation...")
 
     #intialize model
-    segmentation_model = VGG16Deconv(args.save_dir, NUM_CLASSES)
+    networks = {"network1": Network_1, "network2": Network_2, "network3": Network_3, "network4": Network_4, "network5": Network_5}
+    network = None
+    if args.load_dir:
+        if len(args.load_dir.split("/")) > 1:
+            network_key = args.load_dir.split("/")[1]
+            if network_key in networks:
+                network = networks[network_key]  # second subfolder contains network
+    if args.save_dir:
+        if len(args.save_dir.split("/")) > 1:
+            network_key = args.save_dir.split("/")[1]
+            if network_key in networks:
+                network = networks[network_key]
+    if not network:
+        raise RuntimeError("Please specify a model folder in which to save the current model.")
+
+    segmentation_model = network(args.save_dir, NUM_CLASSES)
 
     if not args.load_dir == '':
         with open(args.load_dir, 'rb') as f:
@@ -95,8 +114,8 @@ if __name__ == '__main__':
 
     if not args.test:        
         #train the model for a set number of epochs
-        for epoch in range(epochs):
-            trainer.train(epoch)
+        for epoch in range(EPOCHS):
+            trainer.train(EPOCHS)
             segmentation_model.save()
             trainer.test(use_crf = args.use_crf, iters_per_log = args.log_iters, visualize = args.visualize_output, use_prior = args.prior)
 

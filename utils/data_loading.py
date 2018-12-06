@@ -255,7 +255,7 @@ def preprocess_two_classes(image, target):
     new_image = np.empty(image.shape)
 
     for i in range(3):
-        new_image[:, :, i] = image[:, :, i] - np.mean(image[:, :, i])
+        new_image[:, :, i] = (image[:, :, i] - np.mean(image[:, :, i])) # / np.std(image[:, :, i])
 
     return (new_image, new_target)
 

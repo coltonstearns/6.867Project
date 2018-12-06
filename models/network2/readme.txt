@@ -1,0 +1,1 @@
+Completely changed from original model to follow VGG16 architecture for downsampling. Followed an interpolation scheme for upsampling.
