@@ -5,15 +5,14 @@ import torch.optim as optim
 import matplotlib.pyplot as plt
 import numpy as np
 from tqdm import tqdm
-
+from architectures.network_base import NetworkBase
 '''
 Encoder based on VGG16 architecture (without final fully connected layers)
 '''
-class Network_3(nn.Module):  # inherit from base class torch.nn.Module
+class Network_3(NetworkBase):  # inherit from base class torch.nn.Module
     def __init__(self, save_dir, num_classes):
-        super(Network_3, self).__init__()  # initialize Module characteristics
+        super(Network_3, self).__init__(save_dir, num_classes)  # initialize Module characteristics
         
-        self.save_dir = save_dir
         self.section_outputs = [None, None, None]
         self.sections = []
         self.section_pools = []
@@ -106,5 +105,3 @@ class Network_3(nn.Module):  # inherit from base class torch.nn.Module
 
         return nn.LogSoftmax(dim = 1)(x)
 
-    def save(self):
-        torch.save(self.state_dict(), self.save_dir)

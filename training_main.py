@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import sys
 import argparse
+import subprocess
 from tqdm import tqdm
 
 from utils.data_loading import DeepDriveDataset, load_datasets
@@ -57,7 +58,7 @@ if __name__ == '__main__':
 
     # =================================== More Parameters =============================================
     prior_distribution_file = "priors/python3_prior.out" if sys.version_info[0] > 2 else "priors/python2_prior.out"
-    EPOCHS = 10
+    EPOCHS = 1
     # IMG_PATH = "/home/arjun/MIT/6.867/project/bdd100k_images/bdd100k/images/100k"
     # TEST_PATH = "/home/arjun/MIT/6.867/project/bdd100k_drivable_maps/bdd100k/drivable_maps/labels"
     #IMG_PATH = "C:/Users/Arjun/6.867Project/images/bdd100k/images/100k"
@@ -98,6 +99,9 @@ if __name__ == '__main__':
             network_key = args.save_dir.split("/")[1]
             if network_key in networks:
                 network = networks[network_key]
+         
+                
+
     if not network:
         raise RuntimeError("Please specify a model folder in which to save the current model.")
 

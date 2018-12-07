@@ -1,15 +1,14 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from architectures.network_base import NetworkBase
 
 '''
 Every image is 1280 x 720 pixels.
 '''
-class Network_1(nn.Module):  # inherit from base class torch.nn.Module
+class Network_1(NetworkBase):  # inherit from base class torch.nn.Module
     def __init__(self, save_dir, num_classes):
-        super(Network_1, self).__init__()  # initialize Module characteristics
-        
-        self.save_dir = save_dir
+        super(Network_1, self).__init__(save_dir, num_classes)  # initialize Module characteristics
         # goes from (720 x 720 x 3) to (353 x 353 x 8)
         self.conv1 = nn.Conv2d(3, 8, kernel_size=6, stride = 2, padding = 0, dilation = 3)
 
@@ -34,5 +33,3 @@ class Network_1(nn.Module):  # inherit from base class torch.nn.Module
 
         return nn.LogSoftmax(dim = 1)(x)  # return softmax for probability of 2d tensor
 
-    def save(self):
-        torch.save(self.state_dict(), self.save_dir)
