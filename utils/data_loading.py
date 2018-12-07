@@ -163,18 +163,20 @@ class DeepDriveDataset(data.Dataset):
         """
         # load images
         sample_path, target_path = self.samples[index]
-        sample = default_loader(sample_path)
+        raw_sample = default_loader(sample_path)
         target = pil_black_and_white_loader(target_path)
 
         # perform equivalent transform on BOTH image and target 
         if self.transform is not None:
-            sample, target = self.transform(np.array(sample, dtype = np.float64), np.array(target))
+            sample, target = self.transform(np.array(raw_sample, dtype = np.float64), np.array(target))
         else:
             sample, target = np.array(sample), np.array(target)
 
+        raw_sample = torch.LongTensor(np.array(raw_sample).T)
         target = torch.LongTensor(target.T)
         sample = torch.FloatTensor(sample.T)
-        return sample, target
+
+        return raw_sample, sample, target
 
 
     '''

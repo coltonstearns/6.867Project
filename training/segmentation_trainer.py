@@ -50,7 +50,7 @@ class SegmentationTrainer:
         loss_func = nn.CrossEntropyLoss(reduction = "none")
 
         # run through data in batches, train network on each batch
-        for batch_idx, (data, target) in tqdm(enumerate(self.train_loader)):
+        for batch_idx, (_, data, target) in tqdm(enumerate(self.train_loader)):
             loss_vec = torch.zeros((self.num_classes), dtype = torch.float32)
             data, target = data.to(self.device), target.to(self.device)
             self.optimizer.zero_grad()  # reset gradient to 0 (so doesn't accumulate)
@@ -91,26 +91,31 @@ class SegmentationTrainer:
         loss_func = nn.CrossEntropyLoss()
         batches_done = 0
 
-        with torch.no_grad():
-            # prior = torch.ones(self.data_statistics.get_distribution().shape) - self.data_statistics.get_distribution()
+        with torch.no_grad():            
             # calculate an UNBIASED prior
             prior = self.data_statistics.get_distribution().to(self.device)
             for i in range(self.num_classes):
                 prior[i] = prior[i] / (torch.mean(prior[i]))  #  scales relative probs to have mean of 1
             normalization = torch.sum(prior, dim = 0)  # sum along classes
             prior /= normalization
+            prior = torch.ones(prior.shape).to(self.device) - prior
 
-            for batch_idx, (data, target) in tqdm(enumerate(self.test_loader)):  # runs through trainer
+            for batch_idx, (raw_samples, data, target) in tqdm(enumerate(self.test_loader)):  # runs through trainer
                 data, target = data.to(self.device), target.to(self.device)
                 output = self.model(data)
                 if use_prior:
-                    alpha = .75
-                    for i in range(len(output)):  # could be multiple images in output batch
-                        output[i] = alpha * output[i] + (1-alpha) * prior
+                    output = np.e**(output)
+                    for i in range(len(output)): # could be multiple images in output batch
+                        output[i] = output[i] - prior
+                        output[i] = torch.sigmoid(output[i])
+                        normalization = torch.sum(output[i], dim = 0)
+                        output[i] /= normalization
+                        output = np.log(output)
 
                 if use_crf:
-                    output = crf_batch_postprocessing(data, output, self.num_classes)
+                    output = crf_batch_postprocessing(raw_samples, output, self.num_classes)
 
+                output = output.to(self.device)
                 test_loss += loss_func(output, target).item()
 
                 #convert into 1 channel image with values 
@@ -126,7 +131,7 @@ class SegmentationTrainer:
                 if(batches_done % self.log_spacing == 0):
                     print_log(correct, test_loss, batches_done, self.test_loader.batch_size, dataset_name, True, self.test_confusion)
                     if visualize:
-                        visualize_output(pred, target)
+                        visualize_output(pred, target, raw_samples)
 
             print_log(correct, test_loss, len(self.test_loader.dataset), 1, dataset_name, True, self.training_confusion)    
             
@@ -197,7 +202,7 @@ def print_log(correct_pixels, loss, num_samples, batch_size, name, use_acc_dict 
         print('--------------------------------------------------------------')
 
 
-def visualize_output(pred, target):
+def visualize_output(pred, target, image):
     """
     Args:
         pred (torch.tensor): 3D tensor. Axis 0 has each image output, axes 1 and 2 define the predicted output; each entry
@@ -205,12 +210,15 @@ def visualize_output(pred, target):
         target (torch.tensor): same as pred, but the correct target
     """
 
-    prediction_numpy, target_numpy = pred.cpu().data.numpy()[0,:,:], target.cpu().data.numpy()[0,:,:]
+    prediction_numpy, target_numpy, raw_image = pred.cpu().data.numpy()[0,:,:], target.cpu().data.numpy()[0,:,:], image.cpu().data.numpy()[0,:,:,:]
     total_image = (np.hstack((prediction_numpy, target_numpy))*100)
     total_image = np.array(total_image, dtype = np.uint8).T
+    real_image = np.array(raw_image, dtype = np.uint8).T
 
     # show actual target
     image = Image.fromarray(total_image, "L")
+    image2 = Image.fromarray(real_image)
     image.show()
+    image2.show()
 
 

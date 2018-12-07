@@ -52,21 +52,21 @@ def crf_postprocessing(original_image, fcn_output, num_classes):
     # this matrix says it is 5x worse to classify drivable as not drivable
     # vs current lane as other lane
     if num_classes == 3:
-        compatability_matrix = np.array([[0., 3., 3.],
-                                        [3., 0., 3.],
-                                        [3., 3., 0.]]).astype(np.float32)
+        compatability_matrix = np.array([[0., .25, .25],
+                                        [.25, 0., .25],
+                                        [.25, 3., .25]]).astype(np.float32)
         location_xy_stdev = 3
         color_xy_stdev = 80
-        color_rgb_stdev = 15
-        num_smoothing_iters = 1
+        color_rgb_stdev = 13
+        num_smoothing_iters = 4
 
     elif num_classes == 2:
-        compatability_matrix = np.array([[1., 2.],
-                                     [2., 0.]]).astype(np.float32)
+        compatability_matrix = np.array([[0., .25],
+                                     [.25, 0.]]).astype(np.float32)
         location_xy_stdev = 3
-        color_xy_stdev = 20
-        color_rgb_stdev = 5
-        num_smoothing_iters = 1
+        color_xy_stdev = 80
+        color_rgb_stdev = 13
+        num_smoothing_iters = 5
 
     else:
         assert(False), "CRF postprocessing only supports 2 and 3 classes"
@@ -77,7 +77,7 @@ def crf_postprocessing(original_image, fcn_output, num_classes):
     dense_crf.addPairwiseGaussian(sxy = location_xy_stdev, compat = compatability_matrix)
 
     # add pairwise connections for Color similarity in CRF
-    dense_crf.addPairwiseBilateral(sxy = color_xy_stdev, srgb = color_rgb_stdev, rgbim = original_image.T.copy(order = 'C'), compat = compatability_matrix*num_classes)
+    dense_crf.addPairwiseBilateral(sxy = color_xy_stdev, srgb = color_rgb_stdev, rgbim = original_image.T.copy(order = 'C'), compat = compatability_matrix*1.5)
 
     # run 5 iterations of the dense CRF filtering
     Q = dense_crf.inference(num_smoothing_iters)
