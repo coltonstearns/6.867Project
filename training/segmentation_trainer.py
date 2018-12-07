@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from tqdm import tqdm
 from PIL import Image
-
+from utils.progress_bar import ProgressBar
 # our own code imports
 from utils.crf import crf_batch_postprocessing
 
@@ -41,13 +41,15 @@ class SegmentationTrainer:
             save_spacing (int): saves most recent version of model every <save_spacing> batches
             per_class (boolean): true if want class-level statistics printed. false otherwise
         """
+        progress_bar = ProgressBar("Train", len(self.train_loader), self.train_loader.batch_size)
         self.model.train()  # puts it in training mode
         sum_num_correct = 0
         sum_loss = 0
         num_batches_since_log = 0
         loss_func = nn.CrossEntropyLoss(reduction = "none")
         # run through data in batches, train network on each batch
-        for batch_idx, (_, data, target) in tqdm(enumerate(self.train_loader)):
+        for batch_idx, (_, data, target) in enumerate(self.train_loader):
+            progress_bar.make_progress()
             if batch_idx < start_index: continue
             loss_vec = torch.zeros((self.num_classes), dtype = torch.float32)
             data, target = data.to(self.device), target.to(self.device)
@@ -57,7 +59,7 @@ class SegmentationTrainer:
 
             # convert into 1 channel image with predicted class values 
             pred = torch.argmax(output, dim = 1, keepdim = False)
-            assert(pred.shape == (self.train_loader.batch_size, 1280, 720)), "got incorrect shape of: " + str(pred.shape)
+            #assert(pred.shape == (self.train_loader.batch_size, 1280, 720)), "got incorrect shape of: " + str(pred.shape)
 
             correct_pixels = pred.eq(target.view_as(pred)).sum().item()
             sum_num_correct += correct_pixels
@@ -71,11 +73,10 @@ class SegmentationTrainer:
             self.optimizer.step()  # update model parameters with loss gradient
 
             #update per-class accuracies
-            if(self.per_class):
-                get_per_class_accuracy(pred, target, self.model.train_stats.confusion)
-                self.model.train_stats.per_class_accuracy.append(np.diagonal(self.model.train_stats.confusion).copy())
+            get_per_class_accuracy(pred, target, self.model.train_stats.confusion)
 
             if batch_idx % self.log_spacing == 0:
+                self.model.train_stats.per_class_accuracy.append(np.diagonal(self.model.train_stats.confusion).copy())
                 print("Loss Vec: {}".format(loss_vec))
                 self.print_log(sum_num_correct, sum_loss, batch_idx + 1, self.train_loader.batch_size, 
                           "Training Set", self.per_class, self.model.train_stats.confusion)
@@ -100,7 +101,7 @@ class SegmentationTrainer:
             prior /= normalization
             prior = torch.ones(prior.shape).to(self.device) - prior
 
-            for batch_idx, (raw_samples, data, target) in tqdm(enumerate(self.test_loader)):  # runs through trainer
+            for batch_idx, (raw_samples, data, target) in enumerate(self.test_loader):  # runs through trainer
                 data, target = data.to(self.device), target.to(self.device)
                 output = self.model(data)
                 if use_prior:
@@ -120,21 +121,20 @@ class SegmentationTrainer:
 
                 #convert into 1 channel image with values 
                 pred = torch.argmax(output, dim = 1, keepdim = False)
-                assert(pred.shape == (self.test_loader.batch_size, 1280, 720)), "got incorrect shape of: " + str(pred.shape)
+                #assert(pred.shape == (self.test_loader.batch_size, 1280, 720)), "got incorrect shape of: " + str(pred.shape)
 
                 correct_pixels = pred.eq(target.view_as(pred)).sum().item()
                 correct += correct_pixels
                 
                 get_per_class_accuracy(pred, target, self.model.test_stats.confusion)
-                self.model.test_stats.per_class_accuracy.append(np.diagonal(self.model.test_stats.confusion).copy())
                 batches_done += 1
 
                 if(batches_done % self.log_spacing == 0):
+                    self.model.test_stats.per_class_accuracy.append(np.diagonal(self.model.test_stats.confusion).copy())
                     self.print_log(correct, test_loss, batches_done, self.test_loader.batch_size, dataset_name, True, self.test_stats.confusion, test = True)
                     if visualize:
                         visualize_output(pred, target, raw_samples)
 
-            self.print_log(correct, test_loss, len(self.test_loader.dataset), 1, dataset_name, True, self.test_stats.confusion, train = True)    
 
 
     def print_log(self, correct_pixels, loss, num_samples, batch_size, name, use_acc_dict = False, acc_dict = None, test = False):
