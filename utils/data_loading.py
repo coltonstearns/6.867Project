@@ -161,7 +161,6 @@ class DeepDriveDataset(data.Dataset):
             each pixel labeled as 0 or 1 for the 3 classes: not drivable area, drivable other lanes, and drivable
             current lane.
         """
-        # load images
         sample_path, target_path = self.samples[index]
         sample = default_loader(sample_path)
         target = pil_black_and_white_loader(target_path)

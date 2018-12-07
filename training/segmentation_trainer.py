@@ -29,7 +29,7 @@ class SegmentationTrainer:
         self.test_confusion = np.zeros((num_classes, num_classes))
         self.data_statistics = data_stats
 
-    def train(self, epoch):
+    def train(self, epoch, start_index = 0):
         """
         Args:
             model (nn.Module): the FCN pytorch model
@@ -48,9 +48,9 @@ class SegmentationTrainer:
         sum_loss = 0
         num_batches_since_log = 0
         loss_func = nn.CrossEntropyLoss(reduction = "none")
-
         # run through data in batches, train network on each batch
         for batch_idx, (data, target) in tqdm(enumerate(self.train_loader)):
+            if(batch_idx < start_index): continue
             loss_vec = torch.zeros((self.num_classes), dtype = torch.float32)
             data, target = data.to(self.device), target.to(self.device)
             self.optimizer.zero_grad()  # reset gradient to 0 (so doesn't accumulate)

@@ -42,7 +42,8 @@ if __name__ == '__main__':
     parser.add_argument('--use_crf', "-crf", action = "store_true", help = "postprocess data with the CRF for testing")
     parser.add_argument('--two_class', '-2', action = "store_true", help = "train on just 2 classes")
     parser.add_argument('--prior', action = "store_true", help = "post process using prior data")
-
+    parser.add_argument('--L2', action = "store", dest = "l2", type = float, help = "sets how much l2 regularization to add", default = 0)
+    parser.add_argument('--start-idx', action = "store", dest = "start_idx", type = int, help = "tells where to resume in data", default = 0)
     args = parser.parse_args()
 
     # ====================================== Parameters From Command Line ================================
@@ -63,9 +64,10 @@ if __name__ == '__main__':
     #TEST_PATH = "C:/Users/Arjun/6.867Project/images/bdd100k/drivable_maps/labels"
     # IMG_PATH = "C:/Users/cstea/Documents/6.867 Final Project/bdd100k_images/bdd100k/images/100k"
     # TEST_PATH = "C:/Users/cstea/Documents/6.867 Final Project/bdd100k_drivable_maps/bdd100k/drivable_maps/labels"
-    IMG_PATH = "C:/Users/sarah/Documents/6.867 Project/bdd100k_images/bdd100k/images/100k"
-    TEST_PATH = "C:/Users/sarah/Documents/6.867 Project/bdd100k_drivable_maps/bdd100k/drivable_maps/labels"
-
+    #IMG_PATH = "C:/Users/sarah/Documents/6.867 Project/bdd100k_images/bdd100k/images/100k"
+    #TEST_PATH = "C:/Users/sarah/Documents/6.867 Project/bdd100k_drivable_maps/bdd100k/drivable_maps/labels"
+    IMG_PATH = "/home/arjun/6.867Project/images/bdd100k/images/100k"
+    TEST_PATH = "/home/arjun/6.867Project/images/bdd100k/drivable_maps/labels"
     # ================================================================================================
 
 
@@ -107,7 +109,7 @@ if __name__ == '__main__':
     
     # push model to either cpu or gpu
     segmentation_model.to(torch.device(DEFAULT_DEVICE))
-    optimizer = optim.Adam(segmentation_model.parameters(), lr = args.lr)
+    optimizer = optim.Adam(segmentation_model.parameters(), lr = args.lr, weight_decay = args.l2)
     trainer = SegmentationTrainer(segmentation_model, DEFAULT_DEVICE, train_loader, test_loader, optimizer, data_statistics,
                  num_classes = NUM_CLASSES, log_spacing = args.log_iters, per_class = args.per_class)
     print("Successful initialization!")
@@ -115,7 +117,7 @@ if __name__ == '__main__':
     if not args.test:        
         #train the model for a set number of epochs
         for epoch in range(EPOCHS):
-            trainer.train(EPOCHS)
+            trainer.train(EPOCHS, args.start_idx)
             segmentation_model.save()
             trainer.test(use_crf = args.use_crf, iters_per_log = args.log_iters, visualize = args.visualize_output, use_prior = args.prior)
 
