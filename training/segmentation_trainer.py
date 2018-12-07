@@ -25,8 +25,6 @@ class SegmentationTrainer:
         self.log_spacing = log_spacing
         self.save_spacing = save_spacing
         self.per_class = per_class
-        #self.training_confusion = np.zeros((num_classes, num_classes))
-        #self.test_confusion = np.zeros((num_classes, num_classes))
         self.data_statistics = data_stats
 
     def train(self, epoch, start_index = 0):
@@ -66,7 +64,7 @@ class SegmentationTrainer:
 
             get_per_class_loss(loss, target, loss_vec)
             loss = torch.sum(loss_vec)
-            self.model.per_class_training_loss.append(loss_vec)
+            self.model.train_stats.per_class_loss.append(loss_vec)
 
             sum_loss += loss.item()
             loss.backward()  # take loss object and calculate gradient; updates optimizer
@@ -74,12 +72,13 @@ class SegmentationTrainer:
 
             #update per-class accuracies
             if(self.per_class):
-                get_per_class_accuracy(pred, target, self.model.training_confusion)
+                get_per_class_accuracy(pred, target, self.model.train_stats.confusion)
+                self.model.train_stats.per_class_accuracy.append(np.diagonal(self.model.train_stats.confusion).copy())
 
             if batch_idx % self.log_spacing == 0:
                 print("Loss Vec: {}".format(loss_vec))
                 self.print_log(sum_num_correct, sum_loss, batch_idx + 1, self.train_loader.batch_size, 
-                          "Training Set", self.per_class, self.model.training_confusion)
+                          "Training Set", self.per_class, self.model.train_stats.confusion)
 
             if batch_idx % self.save_spacing == 0:
                 print('Saving Model to: ' + str(self.model.save_dir))
@@ -126,15 +125,16 @@ class SegmentationTrainer:
                 correct_pixels = pred.eq(target.view_as(pred)).sum().item()
                 correct += correct_pixels
                 
-                get_per_class_accuracy(pred, target, self.model.test_confusion)
+                get_per_class_accuracy(pred, target, self.model.test_stats.confusion)
+                self.model.test_stats.per_class_accuracy.append(np.diagonal(self.model.test_stats.confusion).copy())
                 batches_done += 1
 
                 if(batches_done % self.log_spacing == 0):
-                    self.print_log(correct, test_loss, batches_done, self.test_loader.batch_size, dataset_name, True, self.test_confusion, test = True)
+                    self.print_log(correct, test_loss, batches_done, self.test_loader.batch_size, dataset_name, True, self.test_stats.confusion, test = True)
                     if visualize:
                         visualize_output(pred, target, raw_samples)
 
-            self.print_log(correct, test_loss, len(self.test_loader.dataset), 1, dataset_name, True, self.training_confusion, train = True)    
+            self.print_log(correct, test_loss, len(self.test_loader.dataset), 1, dataset_name, True, self.test_stats.confusion, train = True)    
 
 
     def print_log(self, correct_pixels, loss, num_samples, batch_size, name, use_acc_dict = False, acc_dict = None, test = False):
@@ -146,11 +146,11 @@ class SegmentationTrainer:
             name, loss, correct_pixels, total_samples, accuracy))
         
         if test:
-            self.model.test_loss.append(loss)
-            self.model.test_accuracy.append(accuracy)
+            self.model.test_stats.loss.append(loss)
+            self.model.test_stats.accuracy.append(accuracy)
         else:
-            self.model.training_loss.append(loss)
-            self.model.training_accuracy.append(accuracy)
+            self.model.train_stats.loss.append(loss)
+            self.model.train_stats.accuracy.append(accuracy)
 
 
         if use_acc_dict:
