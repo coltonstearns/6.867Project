@@ -76,9 +76,9 @@ if __name__ == '__main__':
     #load datasets
     train_dataset, test_dataset = load_datasets(IMG_PATH, TEST_PATH, num_classes = NUM_CLASSES)
     train_loader = DataLoader(train_dataset, batch_size = DEFAULT_BATCH, shuffle = False,
-                             num_workers = 1 if USE_CUDA else 0, pin_memory = USE_CUDA)
+                             num_workers = 4 if USE_CUDA else 0)
     test_loader = DataLoader(test_dataset, batch_size = DEFAULT_BATCH, shuffle = False,
-                             num_workers = 1 if USE_CUDA else 0, pin_memory = USE_CUDA)
+                             num_workers = 4 if USE_CUDA else 0)
 
     # load dataset statistics
     data_statistics = DataStats(train_dataset, NUM_CLASSES)

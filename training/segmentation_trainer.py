@@ -48,8 +48,8 @@ class SegmentationTrainer:
         num_batches_since_log = 0
         loss_func = nn.CrossEntropyLoss(reduction = "none")
         # run through data in batches, train network on each batch
-        for batch_idx, (_, data, target) in enumerate(self.train_loader):
-            progress_bar.make_progress()
+        for batch_idx, (_, data, target) in tqdm(enumerate(self.train_loader)):
+            #progress_bar.make_progress()
             if batch_idx < start_index: continue
             loss_vec = torch.zeros((self.num_classes), dtype = torch.float32)
             data, target = data.to(self.device), target.to(self.device)
@@ -91,7 +91,7 @@ class SegmentationTrainer:
         correct = 0
         loss_func = nn.CrossEntropyLoss()
         batches_done = 0
-
+        progress_bar = ProgressBar("Test", len(self.train_loader), self.train_loader.batch_size)
         with torch.no_grad():            
             # calculate an UNBIASED prior
             prior = self.data_statistics.get_distribution().to(self.device)
@@ -101,8 +101,9 @@ class SegmentationTrainer:
             prior /= normalization
             prior = torch.ones(prior.shape).to(self.device) - prior
 
-            for batch_idx, (raw_samples, data, target) in enumerate(self.test_loader):  # runs through trainer
+            for batch_idx, (raw_samples, data, target) in tqdm(enumerate(self.test_loader)):  # runs through trainer
                 data, target = data.to(self.device), target.to(self.device)
+                #progress_bar.make_progress()
                 output = self.model(data)
                 if use_prior:
                     output = np.e**(output)
