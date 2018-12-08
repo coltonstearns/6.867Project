@@ -69,6 +69,12 @@ def make_dataset(image_dir, semantic_image_labels_dir):
             continue
         # otherwise, add this and it's label counterpart to our list
         label_image_name = file[:-4] + "_drivable_id.png"  # get rid of ".jpg" and add "_drivable_id.png"
+        try:
+            #print(label_image_name)
+            if not os.path.exists(semantic_image_labels_dir + "/" + label_image_name):
+                continue
+        except:
+            continue
         item = (image_dir + "/" + file, semantic_image_labels_dir + "/" + label_image_name)
         images_and_lables.append(item)
 

@@ -34,7 +34,7 @@ if __name__ == '__main__':
                          dest = 'load_dir', default = '')
     parser.add_argument('--test', '-t', action = "store_true", help = "A flag to say that we are testing the model only")
     parser.add_argument('--save-to', '-s', type = str, help = "A file location to store the model", dest = "save_dir", required=True)
-    parser.add_argument('--log_iters', '-log', type = int, help = "The spacing between log printouts for training and testing", default = 100)
+    parser.add_argument('--log_iters', '-log', type = int, help = "The spacing between log printouts for training and testing", default = 500)
     parser.add_argument('-lr', type = float, help = "the learning rate to use", default = .001)
     parser.add_argument('--cuda', '-c', action = "store_true", help = "Flag to use cuda for training and testing")
     parser.add_argument('--per_class', action="store_true", help="Flag to output per class data during training")
