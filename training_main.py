@@ -126,10 +126,10 @@ if __name__ == '__main__':
         for epoch in range(EPOCHS):
             trainer.train(EPOCHS, args.start_idx)
             segmentation_model.save()
-            trainer.test(use_crf = args.use_crf, iters_per_log = args.log_iters, visualize = args.visualize_output, use_prior = args.prior)
+            #trainer.test(use_crf = args.use_crf, iters_per_log = args.log_iters, visualize = args.visualize_output, use_prior = args.prior)
 
     else:
         print("testing...")
         trainer.test(use_crf = args.use_crf, iters_per_log = args.log_iters, visualize = args.visualize_output, use_prior = args.prior)
-
+        segmentation_model.save()
 
