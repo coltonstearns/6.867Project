@@ -108,8 +108,11 @@ if __name__ == '__main__':
     segmentation_model = network(args.save_dir, NUM_CLASSES)
 
     if not args.load_dir == '':
-        with open(args.load_dir, 'rb') as f:
-            segmentation_model.load_state_dict(torch.load(f, map_location = DEFAULT_DEVICE))
+        try:
+            segmentation_model.load(args.load_dir, DEFAULT_DEVICE)
+        except:
+            print("Loading Legacy Model")
+            segmentation_model.legacy_load(args.load_dir, DEFAULT_DEVICE)
     
     # push model to either cpu or gpu
     segmentation_model.to(torch.device(DEFAULT_DEVICE))

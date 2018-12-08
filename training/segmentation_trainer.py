@@ -132,7 +132,9 @@ class SegmentationTrainer:
 
                 if(batches_done % self.log_spacing == 0):
                     self.model.test_stats.per_class_accuracy.append(np.diagonal(self.model.test_stats.confusion).copy())
-                    self.print_log(correct, test_loss, batches_done, self.test_loader.batch_size, dataset_name, True, self.test_stats.confusion, test = True)
+                    self.print_log(correct, test_loss, batches_done, self.test_loader.batch_size, dataset_name, True, self.test_stats.confusion, test = True) 
+                    self.model.save()
+
                     if visualize:
                         visualize_output(pred, target, raw_samples)
 
