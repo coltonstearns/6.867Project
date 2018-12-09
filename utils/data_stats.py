@@ -6,6 +6,8 @@ import dill
 from tqdm import tqdm
 import sys
 import pickle
+from PIL import Image
+import numpy as np
 
 
 class DataStats:
@@ -74,20 +76,9 @@ class DataStats:
         self.class_distribution /= len(self.dataset)
         self.mean_rgb /= len(self.dataset)
 
-        try:
-            with open(outfile, "wb") as ofile:
-                #save statistics
-                dill.dump([self.class_distribution, self.mean_rgb], ofile)
-        except:
-            pass
-
-        try:
-            list_version = [deep_list(self.class_distribution), deep_list(self.mean_rgb)]
-            with open("pickle_" + outfile, "wb") as ofile:
-                #save statistics
-                pickle.dump(list_version, ofile)
-        except:
-            pass
+        with open(outfile, "wb") as ofile:
+            #save statistics
+            dill.dump([self.class_distribution, self.mean_rgb], ofile)
 
     def load_stats(self, infile):
         r"""
@@ -95,18 +86,30 @@ class DataStats:
         """
         with open(infile, "rb") as ifile:
             self.class_distribution, self.mean_rgb = dill.load(ifile)
-
-
-def deep_list(input):
-    if len(input.shape) == 0:
-        return float(input)
-
-    current = list(input)
-    for i in range(len(current)):
-        current[i] = deep_list(current[i])
-
-    return current
         
 
+# if we call this script on it's own, we will visualize the prior
+if __name__ == "__main__":
+    IMG_PATH = "C:/Users/sarah/Documents/6.867 Project/bdd100k_images/bdd100k/images/100k"
+    TEST_PATH = "C:/Users/sarah/Documents/6.867 Project/bdd100k_drivable_maps/bdd100k/drivable_maps/labels"
 
+    train_dataset, _ = load_datasets(IMG_PATH, TEST_PATH, num_classes = 2)
+    prior_distribution_file = "priors/python3_prior.out" if sys.version_info[0] > 2 else "priors/python2_prior.out"
+    data_statistics = DataStats(train_dataset, num_classes = 2)
+    data_statistics.load_stats(prior_distribution_file)
 
+    # normalize class distributions to be unbiased
+    distribution = data_statistics.get_distribution().data.numpy().astype(np.float64)
+    means = np.mean(distribution, axis = (1,2), keepdims = True)  # take the mean of each channel
+    distribution /= means  # divide out each channel by respective mean
+    distribution /= np.sum(distribution, axis = 0)  # regularize to probability 1
+
+    drivable = distribution[1]
+    drivable = np.floor(drivable*255)
+
+    # visualize distribution
+    # image = np.argmax(distribution, axis = 0) * 200
+    image = drivable.astype(np.uint8).T
+    img = Image.fromarray(image)
+    img.show()
+    img.save("prior_distribution.bmp")

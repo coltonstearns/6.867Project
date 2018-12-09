@@ -43,7 +43,8 @@ class SegmentationTrainer:
         """
         progress_bar = ProgressBar("Train", len(self.train_loader), self.train_loader.batch_size)
         self.model.train()  # puts it in training mode
-        sum_num_correct = 0
+        class_correct =  [0] * self.num_classes
+        class_jacard_or = [0] * self.num_classes
         sum_loss = 0
         num_batches_since_log = 0
         loss_func = nn.CrossEntropyLoss(reduction = "none")
@@ -61,8 +62,20 @@ class SegmentationTrainer:
             pred = torch.argmax(output, dim = 1, keepdim = False)
             #assert(pred.shape == (self.train_loader.batch_size, 1280, 720)), "got incorrect shape of: " + str(pred.shape)
 
-            correct_pixels = pred.eq(target.view_as(pred)).sum().item()
-            sum_num_correct += correct_pixels
+            # record pixel measurements
+            for i in range(self.num_classes):
+                correct_pixels = torch.where(
+                    pred.byte().eq(torch.ones(pred.shape, dtype = torch.uint8).to(self.device) * i)
+                    & target.view_as(pred).byte().eq(torch.ones(pred.shape, dtype = torch.uint8).to(self.device) * i),
+                    torch.ones(pred.shape, dtype = torch.uint8).to(self.device),
+                    torch.zeros(pred.shape, dtype = torch.uint8).to(self.device)).sum().item()
+                class_correct[i] += correct_pixels
+                jaccard_or_pixels = torch.where(
+                    pred.byte().eq(torch.ones(pred.shape, dtype = torch.uint8).to(self.device) * i)
+                    | target.view_as(pred).byte().eq(torch.ones(pred.shape, dtype = torch.uint8).to(self.device) * i),
+                    torch.ones(pred.shape, dtype = torch.uint8).to(self.device),
+                    torch.zeros(pred.shape, dtype = torch.uint8).to(self.device)).sum().item()
+                class_jacard_or[i] += jaccard_or_pixels
 
             get_per_class_loss(loss, target, loss_vec)
             loss = torch.sum(loss_vec)
@@ -78,7 +91,7 @@ class SegmentationTrainer:
             if batch_idx % self.log_spacing == 0:
                 self.model.train_stats.per_class_accuracy.append(np.diagonal(self.model.train_stats.confusion).copy())
                 print("Loss Vec: {}".format(loss_vec))
-                self.print_log(sum_num_correct, sum_loss, batch_idx + 1, self.train_loader.batch_size, 
+                self.print_log(class_correct, class_jacard_or, sum_loss, batch_idx + 1, self.train_loader.batch_size,
                           "Training Set", self.per_class, self.model.train_stats.confusion)
 
             if batch_idx % self.save_spacing == 0:
@@ -88,7 +101,8 @@ class SegmentationTrainer:
     def test(self, dataset_name= "Test set", use_crf = True, iters_per_log = 100, visualize = False, use_prior = True):
         self.model.eval()
         test_loss = 0
-        correct = 0
+        class_correct =  [0] * self.num_classes
+        class_jacard_or = [0] * self.num_classes
         loss_func = nn.CrossEntropyLoss()
         batches_done = 0
         progress_bar = ProgressBar("Test", len(self.train_loader), self.train_loader.batch_size)
@@ -124,15 +138,25 @@ class SegmentationTrainer:
                 pred = torch.argmax(output, dim = 1, keepdim = False)
                 #assert(pred.shape == (self.test_loader.batch_size, 1280, 720)), "got incorrect shape of: " + str(pred.shape)
 
-                correct_pixels = pred.eq(target.view_as(pred)).sum().item()
-                correct += correct_pixels
-                
+                # record pixel measurements
+                for i in range(self.num_classes):
+                    correct_pixels = torch.where(pred.byte().eq(torch.ones(pred.shape, dtype = torch.uint8).to(self.device)*i)
+                                                 & target.view_as(pred).byte().eq(torch.ones(pred.shape, dtype = torch.uint8).to(self.device)*i),
+                                                 torch.ones(pred.shape, dtype=torch.uint8).to(self.device),
+                                                 torch.zeros(pred.shape, dtype=torch.uint8).to(self.device)).sum().item()
+                    class_correct[i] += correct_pixels
+                    jaccard_or_pixels = torch.where(pred.byte().eq(torch.ones(pred.shape, dtype = torch.uint8).to(self.device)*i)
+                                                 | target.view_as(pred).byte().eq(torch.ones(pred.shape, dtype = torch.uint8).to(self.device)*i),
+                                                 torch.ones(pred.shape, dtype=torch.uint8).to(self.device),
+                                                 torch.zeros(pred.shape, dtype=torch.uint8).to(self.device)).sum().item()
+                    class_jacard_or[i] += jaccard_or_pixels
+
                 get_per_class_accuracy(pred, target, self.model.test_stats.confusion)
                 batches_done += 1
 
                 if(batches_done % self.log_spacing == 0):
                     self.model.test_stats.per_class_accuracy.append(np.diagonal(self.model.test_stats.confusion).copy())
-                    self.print_log(correct, test_loss, batches_done, self.test_loader.batch_size, dataset_name, True, self.model.test_stats.confusion, test = True)
+                    self.print_log(class_correct, class_jacard_or, test_loss, batches_done, self.test_loader.batch_size, dataset_name, True, self.model.test_stats.confusion, test = True)
                     print("saving model to {}".format(self.model.save_dir))
                     self.model.save()
 
@@ -141,21 +165,29 @@ class SegmentationTrainer:
 
 
 
-    def print_log(self, correct_pixels, loss, num_samples, batch_size, name, use_acc_dict = False, acc_dict = None, test = False):
+    def print_log(self, class_correct_pixels, class_jacard_or, loss, num_samples, batch_size, name, use_acc_dict = False, acc_dict = None, test = False):
         loss = loss/(num_samples*batch_size)
         total_samples = num_samples*batch_size*1280*720
-        accuracy = 100. * correct_pixels / total_samples
+        accuracy = 100. * sum(class_correct_pixels) / total_samples
+        jaccard_accuracy = np.mean(list(map(lambda x, y: x/y, class_correct_pixels, class_jacard_or)))
         print('\n--------------------------------------------------------------')
-        print('\n{}: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(
-            name, loss, correct_pixels, total_samples, accuracy))
+        print('\n{}: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%), Jaccard: {}\n'.format(
+            name, loss, sum(class_correct_pixels), total_samples, accuracy, jaccard_accuracy))
         
         if test:
             self.model.test_stats.loss.append(loss)
             self.model.test_stats.accuracy.append(accuracy)
+            try:
+                self.model.test_stats.jaccard_accuracy.append(jaccard_accuracy)
+            except AttributeError:
+                pass  # models trained before jaccard accuracy was involved
         else:
             self.model.train_stats.loss.append(loss)
             self.model.train_stats.accuracy.append(accuracy)
-
+            try:
+                self.model.test_stats.jaccard_accuracy.append(jaccard_accuracy)
+            except AttributeError:
+                pass
 
         if use_acc_dict:
             if acc_dict.shape[0] == 3:
