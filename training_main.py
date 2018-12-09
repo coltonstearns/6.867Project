@@ -19,6 +19,8 @@ from architectures.network3 import Network_3
 from architectures.network4 import Network_4
 from architectures.network5 import Network_5
 from architectures.network6 import Network_6
+from architectures.network7 import Network_7
+from architectures.network8 import Network_8
 from utils.data_stats import DataStats
 
 
@@ -87,7 +89,7 @@ if __name__ == '__main__':
     print("Initializing FCN for Segmentation...")
 
     #intialize model
-    networks = {"network1": Network_1, "network2": Network_2, "network3": Network_3, "network4": Network_4, "network5": Network_5, "network6": Network_6}
+    networks = {"network1": Network_1, "network2": Network_2, "network3": Network_3, "network4": Network_4, "network5": Network_5, "network6": Network_6, "network7": Network_7, "network8": Network_8}
     network = None
     if args.load_dir:
         if len(args.load_dir.split("/")) > 1:
