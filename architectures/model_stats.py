@@ -11,6 +11,7 @@ class ModelStats:
         self.accuracy = []
         self.confusion = np.zeros((num_classes, num_classes))
         self.per_class_loss = [] #not used
+        self.jaccard_accuracy = []
         self.per_class_accuracy = []
         self.num_classes = num_classes
 
