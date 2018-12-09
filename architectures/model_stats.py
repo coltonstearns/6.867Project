@@ -56,8 +56,14 @@ class ModelStats:
             print("Accuracy information Not Available")
             accuracy = 0
 
-        print('\nAverage loss: {:.4f}, Accuracy: {:.0f}%\n'.format(
-             loss, accuracy))
+        try:
+            jaccard_accuracy = self.jaccard_accuracy[-1]
+        except:
+            print("Jaccard Accuracy information Not Available")
+            jaccard_accuracy = 0
+
+        print('\nAverage loss: {:.4f}, Accuracy: {:.0f}%, Jaccard Accuracy {:.3f}\n'.format(
+             loss, accuracy, jaccard_accuracy))
 
         acc_dict = self.confusion
         
